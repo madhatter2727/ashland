@@ -48,7 +48,7 @@ export class Nightfall {
     }
   }
   apply(force = false) {
-    const sw0 = this.spW || 0, ST = this.spCur, bo = ST?.type === 'blackout' ? sw0 : 0, fo = ST?.type === 'fog' ? sw0 : 0;
+    const sw0 = this.spW || 0, ST = this.spCur, bo = ST?.type === 'blackout' ? sw0 : 0;
     const k = this.k, e0 = k * k * (3 - 2 * k), e = lerp(e0, 1, bo), g = this.g, s = g.scene, D = this.day, N = this.night;
     // lamps/fire pools: read by the light loop in main.js every frame
     g.lampMul = (1 + NIGHT.lampBoost * e) * lerp(1, ST?.lamps ?? 1, bo); g.lampFlick = NIGHT.lampFlicker * e * (1 + 2 * bo);
@@ -60,8 +60,7 @@ export class Nightfall {
     g.sun.intensity = lerp(NIGHT.sun[0], NIGHT.sun[1], e) * am; g.sun.color.lerpColors(D.sun, N.sun, e);
     this.hemi.intensity = lerp(NIGHT.hemi[0], NIGHT.hemi[1], e) * am; this.hemi.color.lerpColors(D.hemiSky, N.hemiSky, e); this.hemi.groundColor.lerpColors(D.hemiGround, N.hemiGround, e);
     s.environmentIntensity = lerp(NIGHT.env[0], NIGHT.env[1], e) * am;
-    s.fog.density = lerp(NIGHT.fog[0], NIGHT.fog[1], e) * lerp(1, ST?.fog ?? 1, fo); s.fog.color.lerpColors(D.fog, N.fog, e);
-    if (fo > 0) { const m = ST.fogColor, dim = 1 - 0.82 * e; s.fog.color.lerp(this.col.setRGB(m[0] * dim, m[1] * dim, m[2] * dim, THREE.LinearSRGBColorSpace), fo); }
+    s.fog.density = lerp(NIGHT.fog[0], NIGHT.fog[1], e); s.fog.color.lerpColors(D.fog, N.fog, e);
     g.renderer.toneMappingExposure = lerp(NIGHT.exposure[0], NIGHT.exposure[1], e);
     g.sky.material.uniforms.night.value = e; SKY_NIGHT.value = e;
     g.vmSun.intensity = lerp(D.vmSun, D.vmSun * 0.4, e); g.vmSun.color.lerpColors(D.vmSunCol, N.vmSunCol, e);

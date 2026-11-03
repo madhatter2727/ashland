@@ -827,7 +827,7 @@ export class Horde {
       if (T.bloater) this.bloaterTick(e, dt);
       // ambient voices
       e.growlT -= dt;
-      if (e.growlT <= 0 && this.growlT <= 0) { this.hooks.audio.play('growl', this.spatial(e, { brute: T.brute })); e.growlT = rand(3, 8) / (this.special?.groan || 1); this.growlT = 0.35; }
+      if (e.growlT <= 0 && this.growlT <= 0) { this.hooks.audio.play('growl', this.spatial(e, { brute: T.brute })); e.growlT = rand(3, 8); this.growlT = 0.35; }
       // flinch springs
       e.flinchV += (-e.flinch * 140 - e.flinchV * 14) * dt; e.flinch += e.flinchV * dt;
       e.headSnapV += (-e.headSnap * 160 - e.headSnapV * 12) * dt; e.headSnap += e.headSnapV * dt;
@@ -1159,8 +1159,7 @@ export class Horde {
   spatial(e, o = {}) {
     const P = this.player, dx = e.pos.x - P.pos.x, dz = e.pos.z - P.pos.z, d = Math.hypot(dx, dz);
     const rx = Math.cos(P.yaw), rz = -Math.sin(P.yaw);
-    const gk = this.special?.groan || 1;
-    return { ...o, pan: clamp((dx * rx + dz * rz) / (d + 1), -0.9, 0.9), gain: clamp(10 * gk / (d + 4), 0.06, Math.min(1.5, gk)) };
+    return { ...o, pan: clamp((dx * rx + dz * rz) / (d + 1), -0.9, 0.9), gain: clamp(10 / (d + 4), 0.06, 1) };
   }
 
   // legless: dragging itself along on its arms
