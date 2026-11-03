@@ -208,7 +208,7 @@ export const ENEMIES = {
   },
   bloater: {
     hp: 270, speed: 2.5, scale: 1.3, dmg: 12, points: 250,
-    blast: { radius: 5.6, zombieDmg: 340, playerDmg: 46, fuse: 0.14 },              // blast radius (m), peak damage to zombies / to you, seconds from death to burst
+    blast: { radius: 5.6, zombieDmg: 340, playerDmg: 46, fuse: 1.0 },               // blast radius (m), peak damage to zombies / to you, seconds it swells after death before it bursts (M14c tell)
     pulse: [1.1, 7.5],                                                               // glow pulses per second at full health -> near death
     warnAt: 0.5,                                                                     // below this health share the blast ring shows on the ground
   },

@@ -4,7 +4,8 @@ import { clamp, lerp, damp, rand, rayCapsule, raySphere, rayAABB } from './core/
 import { ARENA } from './world/arena.js';
 import { waveParams, RUNNER_SPEED, SPRINTER_SPEED, BOSS_EVERY, ENEMIES as EN, ENEMY_SCHEDULE, scheduledCount, specialFor, IDLE_CHANCE, STUCK, AREAS, CRAWL } from './tuning.js';
 import { NavGrid } from './nav.js';
-import { ZombieFactory, resetRig, play, readJoints, captureRef, solveFromJoints, addStump, makeLimb, poseLimb, PART_BONE, GAIT, blendLayers } from './rig.js';
+import { pbr } from './assets.js';
+import { ZombieFactory, setBody, applyBodyLen, resetRig, play, readJoints, captureRef, solveFromJoints, addStump, makeLimb, poseLimb, PART_BONE, GAIT, blendLayers } from './rig.js';
 
 // ---------------------------------------------------------------------------
 // HUSKS: skinned, mocap-animated zombies (see rig.js). Gameplay runs on a 15-joint
@@ -292,7 +293,7 @@ export class Horde {
     e.maxHp = e.hp; e.lost = 0; e.limbDmg = e.limbDmg || new Float32Array(10); e.limbDmg.fill(0); e.wound = e.wound || new Float32Array(10); e.wound.fill(0);
     e.crawl = false; e.crawlRef = false; e.cph = rand(0, 2); e.surge = 1; e.plant = null; e.armless = false; e.stumps = []; e.facePlayer = false;
     e.charge = -1; e.jp = 0; e.jt = 0; e.jcd = rand(1.2, 2.4); e.hopCd = 0; e.jkind = 'leap'; e.jhit = false; e.jtgt = e.jtgt || new THREE.Vector3(); e.jApex = 0.6; e.lastBeat = -1; e.trailT = 0;
-    e.legHurt = 0; e.crippled = false; e.pulsePh = rand(0, 6); e.beat = 0; e.fuse = -1; e.att = null; e.armorT = 0;
+    e.legHurt = 0; e.crippled = false; e.pulsePh = rand(0, 6); e.beat = 0; e.fuse = -1; e.swell = 0; e.swellBeat = 0; e.att = null; e.armorT = 0;
     e.bs = 'walk'; e.bt = 0; e.chargeCd = 3; e.slamCd = 2; e.stunDur = 1; e.chargeDir = e.chargeDir || new THREE.Vector3(); e.chargeHit = false; e.prePos = e.prePos || new THREE.Vector3();
     e.big = T.scale > 1.8; e.stk = { t: 0, x: at.x, z: at.z, fd: 1e9, n: 0, side: 1, sideT: 0 }; e.navNext = -1; e.navDh = 0; e.respawned = 0;
     e.aware = !idle; e.alertIn = undefined; e.wander = new THREE.Vector3(rand(-28, 28), 0, rand(-28, 28)); e.wanderT = rand(4, 9);
@@ -300,13 +301,15 @@ export class Horde {
     const g = Math.abs(at.x) > Math.abs(at.z) ? new THREE.Vector3(Math.sign(at.x) * (ARENA.half - 1.5), 0, clamp(at.z, -2.5, 2.5)) : new THREE.Vector3(clamp(at.x, -2.5, 2.5), 0, Math.sign(at.z) * (ARENA.half - 1.5));
     e.gatePt.copy(g); e.outside = Math.max(Math.abs(at.x), Math.abs(at.z)) > ARENA.half - 2;
     e.rig = this.takeRig(); e.ragdoll = false; e.ref = e.ref || {}; e.anim = null;
-    const tint = T.boss ? [0.42, 0.36, 0.36] : T.brute ? [0.62, 0.6, 0.6] : T.bloater ? [1.15, 0.95, 0.7] : T.jumper ? [1.3, 0.66, 0.54] : [rand(0.88, 1.08), rand(0.9, 1.08), rand(0.85, 1.0)];
+    const tint = T.boss ? [0.42, 0.36, 0.36] : T.brute ? [0.66, 0.62, 0.62] : T.bloater ? [1, 1, 1] : T.jumper ? [1.08, 0.82, 0.76] : [rand(0.88, 1.08), rand(0.9, 1.08), rand(0.85, 1.0)];
     e.rig.u.uTint.value.setRGB(...tint); e.rig.u.uHue.value = 0; e.rig.u.uBloat.value = 0;
     for (const a of Object.values(e.rig.actions)) a.time = rand(0, 3);
     if (T.boss) { const B = e.rig.bones; B.Spine2.scale.set(1.32, 1.12, 1.4); B.Neck.scale.setScalar(0.8); B.LeftArm.scale.setScalar(1.18); B.RightArm.scale.setScalar(1.18); B.LeftUpLeg.scale.set(1.2, 1, 1.2); B.RightUpLeg.scale.set(1.2, 1, 1.2); e.rig.u.uEmber.value = 1; }
-    else if (T.brute) { const B = e.rig.bones; B.Spine1.scale.set(1.22, 1, 1.22); B.Spine2.scale.set(1.45, 1.1, 1.4); B.Neck.scale.setScalar(0.8); B.LeftArm.scale.setScalar(1.32); B.RightArm.scale.setScalar(1.32); B.LeftUpLeg.scale.set(1.28, 1, 1.28); B.RightUpLeg.scale.set(1.28, 1, 1.28); }
-    else if (T.bloater) { const B = e.rig.bones; B.Spine.scale.set(1.5, 1.0, 1.75); B.Spine1.scale.set(1.12, 1, 1.15); B.LeftArm.scale.setScalar(0.92); B.RightArm.scale.setScalar(0.92); B.Neck.scale.setScalar(0.85); }
-    else if (T.jumper) { const B = e.rig.bones; B.Spine2.scale.set(0.86, 1, 0.84); B.LeftUpLeg.scale.set(0.9, 1.06, 0.9); B.RightUpLeg.scale.set(0.9, 1.06, 0.9); B.LeftArm.scale.set(0.9, 1.1, 0.9); B.RightArm.scale.set(0.9, 1.1, 0.9); e.gait.walkMax = 1.5; e.gait.runMin = 0.5; }
+    // M14c: the specials get their own body shapes (reshaped mesh, see BODIES in rig.js) and skin
+    setBody(e.rig, T.brute && !T.boss ? 'brute' : T.bloater ? 'bloater' : T.jumper ? 'jumper' : null);
+    if (T.brute && !T.boss) { e.gait.reach = 0.12; e.gait.swing = 0.42; e.gait.lurch = 0.1; e.gait.stride = 1.25; e.gait.limp = 0; }
+    else if (T.bloater) { e.rig.u.uPale.value = 1; e.gait.reach = 0.1; e.gait.swing = 0.2; e.gait.stride = 0.75; e.gait.limp = 0; e.gait.lurch = 0.04; }
+    else if (T.jumper) { e.rig.u.uSinew.value = 0.85; e.gait.walkMax = 1.5; e.gait.runMin = 0.5; }
     if (T.crawler) { e.crawl = true; e.crawlRef = false; e.gait.limp = 0; }
     if (this.special?.tint && !T.boss) e.rig.u.uTint.value.multiply(tmpC.setRGB(...this.special.tint));
     this.attach(e);
@@ -630,16 +633,17 @@ export class Horde {
     if (e.type.sever && (def.id === 'sg' || def.id === 'mr')) {
       for (let pi = 1; pi < 10; pi++) if (e.limbDmg[pi] >= SEVER_THR[pi] * e.type.sever * (pi === 1 ? 0.5 : 0.35)) this.sever(e, pi, dir);
     }
-    if (e.type.bloater) e.fuse = EN.bloater.blast.fuse; // bursts a moment after it dies
+    if (e.type.bloater) { e.fuse = EN.bloater.blast.fuse; e.swell = 0; e.swellBeat = 0; this.hooks.audio.play('bloatBeat', this.spatial(e, { k: 1 })); } // swells up, then bursts
     if (e.type.boss) {
       for (let i = 0; i < 4; i++) this.hooks.fx.ichor(e.joints[[J.chest, J.head, J.pelvis, J.chest][i]], new THREE.Vector3(rand(-1, 1), 1, rand(-1, 1)), 3);
       this.hooks.audio.play('roar', { gain: 0.8 }); this.hooks.onBossDead?.(e);
     }
     // violent / headshot / dismembered / airborne kills go limp (ragdoll); plain body kills play the mocap death
-    const clip = !e.crawl && !head && !e.lost && e.grounded && (e.type.boss || (def.id === 'ar' && Math.random() < 0.6));
-    e.ragdoll = !clip;
+    // (a dying Bloater does neither: it stays on its feet and swells until it bursts)
+    const clip = !e.type.bloater && !e.crawl && !head && !e.lost && e.grounded && (e.type.boss || (def.id === 'ar' && Math.random() < 0.6));
+    e.ragdoll = !clip && !e.type.bloater;
     if (clip) { play(e.rig, 'die', 0.15, e.type.boss ? 0.75 : rand(1.1, 1.4), true); e.anim = 'die'; }
-    else captureRef(e.rig, e.joints, e.ref);
+    else if (!e.type.bloater) captureRef(e.rig, e.joints, e.ref);
     // ragdoll: previous positions encode velocity (motion + shot impulse, strongest near the hit)
     const h = 1 / 120;
     const v = e.vel.clone().add(e.kb);
@@ -704,7 +708,8 @@ export class Horde {
     for (const e of this.enemies) {
       if (e.stumps.length) this.updateStumps(e, dt);
       if (e.dead) {
-        if (e.fuse >= 0) { e.fuse -= dt; if (e.fuse < 0) this.burst(e); }
+        if (e.fuse >= 0) { e.fuse -= dt; if (e.type.bloater) this.swellTick(e, dt); if (e.fuse < 0) this.burst(e); }
+        if (e.type.bloater && !e.ragdoll) { e.flash = Math.max(0, e.flash - dt * 9); continue; }
         e.flash = Math.max(0, e.flash - dt * 9);
         if (e.ragdoll) { this.updateRagdoll(e, dt); if (e.deadT < 3.6) solveFromJoints(e.rig, e.joints, e.ref); }
         else this.updateDeathClip(e, dt);
@@ -926,7 +931,19 @@ export class Horde {
     const k = Math.floor(e.pulsePh);
     if (k !== e.lastBeat) { e.lastBeat = k; if (!e.dead) this.hooks.audio.play('bloatBeat', this.spatial(e, { k: 1 - f })); }
     e.beat = 0.3 + 0.7 * Math.pow(0.5 + 0.5 * Math.sin(e.pulsePh * Math.PI * 2 - 1.2), 2);
-    e.flash = Math.max(e.flash, 0.05 + 0.18 * (1 - f) * e.beat);
+  }
+  // M14c death tell: for `blast.fuse` seconds the corpse stays standing and swells, trembling, its gut glowing hotter
+  // and its heartbeat racing, then it bursts
+  swellTick(e, dt) {
+    const F = EN.bloater.blast.fuse, R = e.rig;
+    e.swell = clamp(1 - e.fuse / F, 0, 1);
+    e.swellBeat -= dt;
+    if (e.swellBeat <= 0) { e.swellBeat = lerp(0.24, 0.07, e.swell); this.hooks.audio.play('bloatBeat', this.spatial(e, { k: 1 })); }
+    if (!R) return;
+    const j = 0.012 + 0.03 * e.swell * e.swell;
+    R.root.position.set(e.pos.x + rand(-j, j), e.pos.y + rand(0, j * 0.6), e.pos.z + rand(-j, j));
+    R.root.scale.setScalar(e.scale * (1 + 0.1 * e.swell * e.swell));
+    R.root.updateMatrixWorld(true);
   }
   burst(e) {
     const c = e.joints[J.pelvis].clone().lerp(e.joints[J.chest], 0.35);
@@ -1046,28 +1063,49 @@ export class Horde {
   }
   // ---- attachments: armour plates on Brutes, glowing sac + warning ring on Bloaters (small pools, no per-zombie allocation)
   buildPlates(scene) {
-    const steel = new THREE.MeshStandardMaterial({ color: '#77726e', roughness: 0.5, metalness: 0.55 });
-    const rust = new THREE.MeshStandardMaterial({ color: '#8d5c36', roughness: 0.6, metalness: 0.4 });
-    const strap = new THREE.MeshStandardMaterial({ color: '#2b2725', roughness: 0.85, metalness: 0.2 });
-    const L = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
-    const rb = (w, h, d, r = 0.02) => new RoundedBoxGeometry(w, h, d, 2, r);
-    const cap = (r) => new THREE.SphereGeometry(r, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    const spike = new THREE.ConeGeometry(0.04, 0.2, 6);
-    const defs = [
-      [rb(0.58, 0.42, 0.15, 0.04), steel, 0, L(0, 0.3, 0.15, -0.1)],   // breastplate
-      [rb(0.46, 0.38, 0.07, 0.03), steel, 0, L(0, 0.3, -0.13, 0.1)],    // back plate
-      [rb(0.5, 0.13, 0.16, 0.03), rust, 0, L(0, 0.07, 0.12, 0.1)],     // belly band
-      [rb(0.6, 0.06, 0.2, 0.02), strap, 0, L(0, 0.2, 0.0)],           // belt strap
-    ];
-    for (const pi of [2, 4]) { defs.push([cap(0.17), steel, pi, L(0, 0.02, 0, Math.PI, 0, 0, 1.15, 0.8, 1.15)]); defs.push([spike, rust, pi, L(0, -0.12, 0, Math.PI, 0, 0, 0.9, 0.7, 0.9)]); }
-    for (const pi of [3, 5]) defs.push([new THREE.CylinderGeometry(0.075, 0.09, 0.2, 10), rust, pi, L(0, 0.15, 0)]);
-    for (const pi of [6, 8]) defs.push([rb(0.21, 0.34, 0.12, 0.03), steel, pi, L(0, 0.2, 0.09), true]);
-    for (const pi of [7, 9]) defs.push([rb(0.16, 0.3, 0.1, 0.025), rust, pi, L(0, 0.2, 0.07), true]);
-    defs.push([cap(0.17), steel, 1, L(0, 0.1, -0.005, 0, 0, 0, 1, 1, 1.05)]);       // helm
-    defs.push([rb(0.2, 0.05, 0.05, 0.015), strap, 1, L(0, 0.11, 0.15)]);             // visor slit
-    defs.push([spike, rust, 1, L(0, 0.27, -0.01, 0, 0, 0, 1, 0.9, 1)]);                // crest spike
+    // M14c: Brute armour = crude, dull iron plates strapped over the bulked body (Poly Haven rusty metal, darkened),
+    // authored in bind-pose body space (metres, +x = its left, +z = forward) and pinned to the bone under each one
+    const A = this.hooks.assets, rm = A?.textures?.rusty_metal_02;
+    const iron = rm ? pbr(A, 'rusty_metal_02', { repeat: [1.2, 1.2], color: '#6d6762', metal: true, envMapIntensity: 0.45 }) : new THREE.MeshStandardMaterial({ color: '#46423e', roughness: 0.7, metalness: 0.6 });
+    const rust = rm ? pbr(A, 'rusty_metal_02', { repeat: [0.7, 0.7], color: '#7a5a46', metal: true, envMapIntensity: 0.35 }) : new THREE.MeshStandardMaterial({ color: '#5a3a26', roughness: 0.85, metalness: 0.35 });
+    const strap = new THREE.MeshStandardMaterial({ color: '#2a1e16', roughness: 0.92, metalness: 0 });
+    const rivetM = new THREE.MeshStandardMaterial({ color: '#8a847c', roughness: 0.45, metalness: 0.8, envMapIntensity: 0.5 });
+    for (const m of [iron, rust]) { m.side = THREE.DoubleSide; m.roughness = 1; }
+    // curved plate: a slice of an elliptic cylinder (axis = local y), centred on +z
+    const shell = (rx, rz, h, arc, seg = 14) => { const g = new THREE.CylinderGeometry(1, 1, 1, seg, 1, true, -arc / 2, arc); g.scale(rx, h, rz); return g; };
+    const band = (rx, rz, h) => { const g = new THREE.CylinderGeometry(1, 1, 1, 24, 1, true); g.scale(rx, h, rz); return g; };
+    const capG = (r, sy = 1) => { const g = new THREE.SphereGeometry(r, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42); g.scale(1, sy, 1); return g; };
+    const rivetG = new THREE.SphereGeometry(0.013, 6, 4);
+    const W = (x, y, z, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, 'YXZ')), new THREE.Vector3(1, 1, 1));
+    const defs = []; // [geometry, material, bone, world matrix, leg?]
+    const both = (geo, mat, bone, x, y, z, rx, ry, rz, leg) => { defs.push([geo, mat, 'Left' + bone, W(x, y, z, rx, ry, rz), leg]); defs.push([geo, mat, 'Right' + bone, W(-x, y, z, rx, -ry, -rz), leg]); };
+    // chest: breastplate over the pecs, a lower plate, a back plate over the hump, a belt
+    defs.push([shell(0.27, 0.25, 0.25, 2.3), iron, 'Spine2', W(0, 1.34, -0.065, -0.12)]);
+    defs.push([shell(0.25, 0.235, 0.11, 2.0), rust, 'Spine1', W(0, 1.19, -0.07, 0.05)]);
+    defs.push([shell(0.25, 0.25, 0.24, 2.0), iron, 'Spine2', W(0, 1.37, -0.035, 0.15, Math.PI)]);
+    defs.push([band(0.225, 0.15, 0.065), strap, 'Hips', W(0, 0.985, 0.012)]);
+    defs.push([new THREE.BoxGeometry(0.07, 0.06, 0.02), rust, 'Hips', W(0, 0.985, 0.165)]); // buckle
+    // straps over the shoulders holding the chest plates, rivets on the breastplate
+    both(new THREE.BoxGeometry(0.05, 0.2, 0.018), strap, 'Shoulder', 0.12, 1.47, 0.05, -0.75, 0, 0);
+    for (const [a, y] of [[0.85, 1.24], [0.85, 1.43], [0.35, 1.44], [0.35, 1.24]]) for (const sx of [1, -1]) defs.push([rivetG, rivetM, 'Spine2', W(sx * 0.27 * Math.sin(a), y, -0.065 + 0.25 * Math.cos(a))]);
+    // pauldrons: two overlapping iron lames over each shoulder
+    both(capG(0.16, 0.75), iron, 'Arm', 0.235, 1.455, -0.076, 0, 0, -0.35);
+    both(capG(0.145, 0.7), rust, 'Arm', 0.315, 1.43, -0.076, 0, 0, -0.85);
+    // bracers on the forearms with two straps, a plate on each thigh, knee cops
+    both(band(0.118, 0.118, 0.17), rust, 'ForeArm', 0.6, 1.434, -0.076, 0, 0, Math.PI / 2);
+    both(band(0.124, 0.124, 0.025), strap, 'ForeArm', 0.54, 1.434, -0.076, 0, 0, Math.PI / 2);
+    both(band(0.124, 0.124, 0.025), strap, 'ForeArm', 0.66, 1.434, -0.076, 0, 0, Math.PI / 2);
+    both(shell(0.19, 0.19, 0.22, 1.9), iron, 'UpLeg', 0.098, 0.66, 0.005, 0, 0, 0, true);
+    both(capG(0.095, 0.55), rust, 'Leg', 0.099, 0.45, 0.13, Math.PI / 2, 0, 0, true);
+    // a dented iron skullcap with a brow band
+    defs.push([capG(0.112, 0.9), iron, 'Head', W(0, 1.675, 0.005, -0.1)]);
+    defs.push([band(0.098, 0.115, 0.03), strap, 'Head', W(0, 1.68, 0.006, -0.1)]);
+    // bind-pose bone frames of the template (pieces are stored relative to them)
+    const T = this.factory.template; T.updateMatrixWorld(true);
+    const tb = {}; T.traverse((o) => { if (o.isBone) tb[o.name] = o; });
+    const local = defs.map(([, , bone, w]) => new THREE.Matrix4().copy(tb[bone].matrixWorld).invert().multiply(w));
     this.plateSets = Array.from({ length: 5 }, () => {
-      const pieces = defs.map(([geo, mat, part, local, leg]) => { const m = new THREE.Mesh(geo, mat); m.matrixAutoUpdate = false; m.frustumCulled = false; m.visible = false; m.castShadow = false; scene.add(m); return { m, part, local, leg: !!leg }; });
+      const pieces = defs.map(([geo, mat, bone, , leg], k) => { const m = new THREE.Mesh(geo, mat); m.matrixAutoUpdate = false; m.frustumCulled = false; m.visible = false; m.castShadow = true; scene.add(m); return { m, bone, local: local[k], leg: !!leg }; });
       return { kind: 'brute', pieces, owner: null };
     });
     // bloater: a swollen glowing sac on the belly + a halo, plus a blast-radius ring on the ground
@@ -1075,7 +1113,7 @@ export class Horde {
     this.bloatSets = Array.from({ length: 4 }, () => {
       const sacM = new THREE.MeshBasicMaterial({ color: new THREE.Color(2, 0.8, 0.1), transparent: true, opacity: 0.7, toneMapped: false });
       const haloM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.3, 0.45, 0.06), transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-      const ringM = new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 1.1, 0.2), transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+      const ringM = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 3.2, 0.5), transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
       const sac = new THREE.Mesh(sacG, sacM), halo = new THREE.Mesh(haloG, haloM), ring = new THREE.Mesh(ringG, ringM);
       for (const m of [sac, halo]) { m.matrixAutoUpdate = false; m.frustumCulled = false; m.visible = false; scene.add(m); }
       ring.frustumCulled = false; ring.visible = false; ring.renderOrder = 5; scene.add(ring);
@@ -1105,9 +1143,7 @@ export class Horde {
       for (const p of set.pieces) {
         p.m.visible = vis && !(p.leg && e.crippled);
         if (!p.m.visible) continue;
-        const P = this.parts[p.part];
-        this.partBasis(e, e.joints[P.a], e.joints[P.b], e.scale, R);
-        p.m.matrix.multiplyMatrices(R, p.local); p.m.matrixWorldNeedsUpdate = true;
+        p.m.matrix.multiplyMatrices(e.rig.bones[p.bone].matrixWorld, p.local); p.m.matrixWorldNeedsUpdate = true;
       }
     }
     const BL = EN.bloater;
@@ -1115,8 +1151,8 @@ export class Horde {
       const e = set.owner;
       if (!e) continue;
       const vis = e.rig && (!e.dead || e.fuse >= 0) && e.dissolve < 0.15, f = clamp(e.hp / e.maxHp, 0, 1);
-      set.sac.visible = set.halo.visible = vis;
-      set.ring.visible = vis && f < BL.warnAt;
+      set.sac.visible = set.halo.visible = false; // M14c: the glow lives in the skin now
+      set.ring.visible = vis && (f < BL.warnAt || e.fuse >= 0);
       if (!vis) continue;
       const P = this.parts[0], beat = e.dead ? 1 : e.beat;
       this.partBasis(e, e.joints[P.a], e.joints[P.b], e.scale, R);
@@ -1125,7 +1161,7 @@ export class Horde {
       set.sac.matrixWorldNeedsUpdate = set.halo.matrixWorldNeedsUpdate = true;
       set.sacM.color.setRGB(0.9 + 1.5 * beat, 0.35 + 0.5 * beat, 0.06 + 0.05 * beat);
       set.haloM.opacity = 0.05 + 0.14 * beat;
-      if (set.ring.visible) { set.ring.position.set(e.pos.x, e.pos.y + 0.06, e.pos.z); set.ring.scale.setScalar(BL.blast.radius); set.ringM.opacity = (0.25 + 0.5 * beat) * clamp((BL.warnAt - f) / 0.2 + 0.4, 0, 1); }
+      if (set.ring.visible) { set.ring.position.set(e.pos.x, e.pos.y + 0.06, e.pos.z); set.ring.scale.setScalar(BL.blast.radius); set.ringM.opacity = e.fuse >= 0 ? 0.45 + 0.5 * Math.abs(Math.sin(e.swell * 30)) : (0.25 + 0.5 * beat) * clamp((BL.warnAt - f) / 0.2 + 0.4, 0, 1); }
     }
   }
 
@@ -1323,6 +1359,8 @@ export class Horde {
     const ph2 = (e.gph + G.offset) % 1;
     blendLayers(R, targets, dt, clip ? 9 : 7, clip ? null : { walk: ph2, run: ph2 }, clip ? { [clip]: ts } : { idle: 1 });
     R.mixer.update(dt);
+    applyBodyLen(R);
+    this.bodyLayer(e, sp, ph2, dt);
     this.gaitLayer(e, sp, b, ph2, dt);
     // hit reactions layered on top of the clip: torso jerk, head snap, twist
     const B = R.bones;
@@ -1334,6 +1372,42 @@ export class Horde {
     if (e.crippled && B.Hips) { const sc = B.Hips.parent.getWorldScale(tS).y || 1; B.Hips.position.y -= 0.1 * e.scale / sc; worldRotate(B.Spine1, tX.set(1, 0, 0).applyQuaternion(R.root.quaternion), 0.18); }
     R.root.updateMatrixWorld(true);
     readJoints(R, e.joints, e.scale);
+  }
+  // M14c: posture + gait character for the special bodies, layered on the mocap before the generic gait layer
+  bodyLayer(e, sp, ph, dt) {
+    const T = e.type, R = e.rig, B = R.bones;
+    if (!(T.brute && !T.boss) && !T.bloater && !T.jumper) return;
+    R.root.updateMatrixWorld(true);
+    const right = tX.set(1, 0, 0).applyQuaternion(R.root.quaternion), fwd = tZ.set(0, 0, 1).applyQuaternion(R.root.quaternion);
+    const moving = clamp(sp / 0.5, 0, 1), s1 = Math.sin(ph * Math.PI * 2), sc = B.Hips.parent.getWorldScale(tS).y || 1;
+    const atk = e.attackT >= 0 ? 0.4 : 1;
+    if (T.brute) {
+      // hunched: back rounded, head thrust forward and low between the shoulders, heavy arms hanging wide
+      worldRotate(B.Spine1, right, 0.2); worldRotate(B.Spine2, right, 0.2 * atk);
+      worldRotate(B.Neck, right, -0.28 * atk); worldRotate(B.Head, right, -0.12 * atk);
+      // stomp: the body rolls over each planted leg, shoulders counter-roll
+      worldRotate(B.Hips, fwd, 0.07 * s1 * moving); worldRotate(B.Spine2, fwd, -0.09 * s1 * moving);
+      if (!(e.lost & (1 << 2))) worldRotate(B.LeftArm, fwd, 0.26 * atk);
+      if (!(e.lost & (1 << 4))) worldRotate(B.RightArm, fwd, -0.26 * atk);
+      if (!(e.lost & (1 << 3))) worldRotate(B.LeftForeArm, right, -0.2 * atk);
+      if (!(e.lost & (1 << 5))) worldRotate(B.RightForeArm, right, -0.2 * atk);
+      B.Hips.position.y -= 0.03 * e.scale / sc;
+    } else if (T.bloater) {
+      // waddle: wide stance, the whole body rocks side to side over each foot, leaning back against the gut, arms held out
+      const rock = 0.15 * s1 * (0.35 + 0.65 * moving);
+      worldRotate(B.Hips, fwd, rock); worldRotate(B.Spine1, fwd, -rock * 0.55); worldRotate(B.Head, fwd, -rock * 0.4);
+      worldRotate(B.Spine, right, -0.14);
+      if (!(e.lost & (1 << 6))) worldRotate(B.LeftUpLeg, fwd, 0.13);
+      if (!(e.lost & (1 << 8))) worldRotate(B.RightUpLeg, fwd, -0.13);
+      if (!(e.lost & (1 << 2))) worldRotate(B.LeftArm, fwd, (0.5 + 0.08 * s1) * atk);
+      if (!(e.lost & (1 << 4))) worldRotate(B.RightArm, fwd, (-0.5 + 0.08 * s1) * atk);
+      B.Hips.position.y += (0.025 * Math.abs(s1) * moving - 0.02) * e.scale / sc;
+    } else if (T.jumper) {
+      // longer legs lift the hips; a low predatory hunch with the head craned up at its prey
+      B.Hips.position.y += 0.1 * e.scale / sc;
+      worldRotate(B.Spine1, right, 0.22 * atk); worldRotate(B.Neck, right, -0.18 * atk); worldRotate(B.Head, right, -0.18 * atk);
+    }
+    void dt;
   }
   // procedural layer over the mocap: reaching / swinging arms, lurch, limp hip drop, heavy boss stomp
   gaitLayer(e, sp, b, ph, dt) {
@@ -1363,16 +1437,17 @@ export class Horde {
     // limp: hip drops and the torso rolls over the bad leg
     if (G.limp > 0 && B.Hips) worldRotate(B.Hips, fwd, G.limp * 0.5 * moving * s2 * (G.limpSide > 1 ? 1 : -1));
     // heavy stride: boss/brute torso dips on footfalls
-    if ((T.boss || T.brute) && B.Hips) { const sc = B.Hips.parent.getWorldScale(tS).y || 1; B.Hips.position.y -= (T.boss ? 0.045 : 0.025) * e.scale * step * moving / sc; }
+    if ((T.boss || T.brute) && B.Hips) { const sc = B.Hips.parent.getWorldScale(tS).y || 1; B.Hips.position.y -= (T.boss ? 0.045 : 0.055) * e.scale * step * moving / sc; }
     // footfall thumps for the boss
     if (T.boss) { const k = Math.floor(ph * 2); if (k !== e.lastStep) { e.lastStep = k; if (moving > 0.5) { this.hooks.onShake?.(0.05); } } }
-    else if (T.brute) { const k = Math.floor(ph * 2); if (k !== e.lastStep) { e.lastStep = k; if (moving > 0.5) { this.hooks.audio.play('bruteStep', this.spatial(e)); if (e.pos.distanceTo(this.player.pos) < 9) this.hooks.onShake?.(0.03); } } }
+    else if (T.brute) { const k = Math.floor(ph * 2); if (k !== e.lastStep) { e.lastStep = k; if (moving > 0.5) { this.hooks.audio.play('bruteStep', this.spatial(e)); const d = e.pos.distanceTo(this.player.pos); if (d < 12) this.hooks.onShake?.(0.075 * (1 - d / 12)); } } }
   }
   // crawlers: reference pose = the bind pose mapped through the procedural crawl joints
   crawlBase(e) {
     const R = e.rig, saved = e.joints.map((j) => j.clone());
     R.mixer.stopAllAction(); R.cur = null; e.anim = null;
     for (const b of Object.values(R.bones)) { const r = R.rest[b.name]; b.quaternion.copy(r.q); b.position.copy(r.p); }
+    applyBodyLen(R);
     for (let pi = 1; pi < 10; pi++) if (e.lost & (1 << pi)) R.bones[PART_BONE[pi]].scale.setScalar(0.0001);
     R.root.updateMatrixWorld(true);
     readJoints(R, e.joints, e.scale);
@@ -1384,6 +1459,7 @@ export class Horde {
     if (e.deadT > (e.type.boss ? 5 : 3.2)) e.dissolve = Math.min(1, e.dissolve + dt / 1.3);
     if (e.deadT > 6) return;
     e.rig.mixer.update(dt);
+    applyBodyLen(e.rig);
     e.rig.root.updateMatrixWorld(true);
     readJoints(e.rig, e.joints, e.scale);
     if (e.deadT > 1.4 && !e.pooled) { e.pooled = true; const c = e.joints[J.chest]; this.hooks.fx.bloodPool(c, e.scale, this.groundAt(c.x, c.z, c.y)); }
@@ -1393,6 +1469,7 @@ export class Horde {
       const R = e.rig; if (!R) continue;
       R.u.uFlash.value = e.flash; R.u.uDiss.value = e.dissolve * 1.05;
       R.u.uGlow.value = 0.6; R.u.uBloat.value = e.type.bloater ? e.beat : 0;
+      if (e.type.bloater) { R.u.uPulse.value = e.dead ? 0 : 0.55 * e.beat; R.u.uSwell.value = e.dead ? Math.pow(e.swell, 1.4) : 0; }
       for (let i = 0; i < 10; i++) R.u.uWound.value[i] = e.wound[i];
       // corpses stop casting shadows once they start rotting away
       if (e.dead && e.dissolve > 0.3 && R.meshes[0].castShadow) for (const m of R.meshes) m.castShadow = false;
