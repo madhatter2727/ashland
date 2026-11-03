@@ -18,7 +18,7 @@ with sync_playwright() as p:
     SIM = """([kind, wave]) => { const H = game.horde, P = game.player, V = P.pos.constructor, N = H.nav; game.state = 'paused'; H.reset(); H.running = false; H.wave = wave; game.trauma = 0;
       let spot = null; for (let x = -30; x <= 30 && !spot; x += 2) for (let z = -16; z <= 32 && !spot; z += 2) { let ok = true; for (let d = -1; d <= 15 && ok; d++) for (const dx of [-1.5, 0, 1.5]) { const c = N.cellOf(x + dx, z - d); if (c < 0 || N.blocked[c] || Math.abs(N.height[c]) > 0.3) ok = false; } if (ok) spot = [x, z]; }
       const [px, pz] = spot; P.pos.set(px, 0, pz); P.vel.set(0, 0, 0);
-      const e = H.spawn(kind, new V(px, 0, pz - 13)); e.aware = true; e.attackCd = 999; e.hp = e.maxHp = 1e6;
+      const e = H.spawn(kind, new V(px, 0, pz - 13)); e.aware = true; e.attackCd = 999; e.hp = e.maxHp = 1e6; if (kind === 'jumper') e.jcd = 0;
       const dt = 1 / 60, B = e.rig.bones, q = { L: B.LeftArm.quaternion.clone(), R: B.RightUpLeg.quaternion.clone() };
       let turn = 0, reach = -1, maxLift = 0, maxY = 0, leaps = 0, wasAir = false, shakeNear = 0, f = 0;
       const body = e.rig.kind;
