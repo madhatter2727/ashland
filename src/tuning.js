@@ -214,6 +214,15 @@ export const ENEMIES = {
   },
   crawler: { hp: 58, speed: 4.3, scale: 0.95, dmg: 12, points: 70 },
 };
+// M14b — the crawl (Crawler Rush crawlers and zombies that lost a leg). Arm over arm: one hand plants and drags the
+// body forward while the other reaches ahead, then they swap. Speed comes in surges synced to each pull.
+//   stride   metres the body moves per pull (x body scale); pulls per second = speed / stride
+//   pullPart share of each pull spent dragging (the lunge); the rest is the short pause while the next hand reaches
+//   rest     speed during the pause (share of the average); the lunge peak is set so the average equals the speed
+//   reach    how far ahead of the shoulder a hand plants, and how far behind it the pull ends (m, x scale)
+//   lift     how high the reaching hand comes off the ground (m)
+//   lurch    extra torso pitch at the top of each pull (radians); roll/swivel: shoulder roll and hip swivel per pull
+export const CRAWL = { stride: 0.82, pullPart: 0.62, rest: 0.28, reach: [0.44, 0.38], lift: 0.2, lurch: 0.14, roll: 0.2, swivel: 0.16 };
 // Spawn schedule. Wave 1-3 mix is unchanged (husks only); Jumpers and Bloaters/Brutes are mixed into the wave's `count`.
 //   jumpers: from wave `from`, each spawn has chance `base + perWave * wave` of being a Jumper, at most `maxAlive(w)` at once
 //   brutes / bloaters: appear only on some waves: wave `from`, then every `every` waves (a boss wave shifts it one wave

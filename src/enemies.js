@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { clamp, lerp, damp, rand, rayCapsule, raySphere, rayAABB } from './core/util.js';
 import { ARENA } from './world/arena.js';
-import { waveParams, RUNNER_SPEED, SPRINTER_SPEED, BOSS_EVERY, ENEMIES as EN, ENEMY_SCHEDULE, scheduledCount, specialFor, IDLE_CHANCE, STUCK, AREAS } from './tuning.js';
+import { waveParams, RUNNER_SPEED, SPRINTER_SPEED, BOSS_EVERY, ENEMIES as EN, ENEMY_SCHEDULE, scheduledCount, specialFor, IDLE_CHANCE, STUCK, AREAS, CRAWL } from './tuning.js';
 import { NavGrid } from './nav.js';
 import { ZombieFactory, resetRig, play, readJoints, captureRef, solveFromJoints, addStump, makeLimb, poseLimb, PART_BONE, GAIT, blendLayers } from './rig.js';
 
@@ -68,6 +68,23 @@ function worldRotate(bone, axis, ang) {
 const tA = new THREE.Vector3(), tB = new THREE.Vector3(), tC = new THREE.Vector3(), tD = new THREE.Vector3(), tN = new THREE.Vector3();
 const tmpC = new THREE.Color(), tmpC2 = new THREE.Color(), vA = new THREE.Vector3(), vB = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion(), tmpM = new THREE.Matrix4(), tX = new THREE.Vector3(), tY = new THREE.Vector3(), tZ = new THREE.Vector3(), tS = new THREE.Vector3();
+// ---- M14b crawl helpers (see CRAWL in tuning.js). u = 0..1 through one pull.
+const CRAWL_P = Array.from({ length: 15 }, () => new THREE.Vector3());
+const CRAWL_A = (1 - CRAWL.rest) / (CRAWL.pullPart / 2); // lunge peak so the average over a pull is 1
+// lunge shape: 0 at the plant, 1 mid-drag, 0 again before the pause
+function crawlLunge(u) { const w = CRAWL.pullPart; return u < w ? Math.sin(Math.PI * u / w) ** 2 : 0; }
+// speed multiplier through a pull (averages 1)
+function crawlSurge(u) { return CRAWL.rest + CRAWL_A * crawlLunge(u); }
+// two-bone arm: elbow bends out to the side and up; the hand stops at full reach instead of stretching
+const UA = 0.278, FA = 0.233, aD = new THREE.Vector3(), aP = new THREE.Vector3();
+function solveArm(S, H, E, sx) {
+  aD.copy(H).sub(S); let d = aD.length(); const max = (UA + FA) * 0.995;
+  if (d > max) { aD.multiplyScalar(max / d); H.copy(S).add(aD); d = max; }
+  aD.normalize();
+  const x = (UA * UA - FA * FA + d * d) / (2 * d), h = Math.sqrt(Math.max(0, UA * UA - x * x));
+  aP.set(sx * 0.5, 0.75, -0.3); aP.addScaledVector(aD, -aP.dot(aD)).normalize();
+  E.copy(S).addScaledVector(aD, x).addScaledVector(aP, h);
+}
 
 export class Horde {
   constructor(scene, arena, hooks) {
@@ -273,7 +290,7 @@ export class Horde {
     e.heat = T.heat * rand(0.8, 1.2);
     e.lastHit = -1; e.rest = {}; e.pooled = false; e.near = null;
     e.maxHp = e.hp; e.lost = 0; e.limbDmg = e.limbDmg || new Float32Array(10); e.limbDmg.fill(0); e.wound = e.wound || new Float32Array(10); e.wound.fill(0);
-    e.crawl = false; e.crawlRef = false; e.armless = false; e.stumps = []; e.facePlayer = false;
+    e.crawl = false; e.crawlRef = false; e.cph = rand(0, 2); e.surge = 1; e.plant = null; e.armless = false; e.stumps = []; e.facePlayer = false;
     e.charge = -1; e.jp = 0; e.jt = 0; e.jcd = rand(1.2, 2.4); e.hopCd = 0; e.jkind = 'leap'; e.jhit = false; e.jtgt = e.jtgt || new THREE.Vector3(); e.jApex = 0.6; e.lastBeat = -1; e.trailT = 0;
     e.legHurt = 0; e.crippled = false; e.pulsePh = rand(0, 6); e.beat = 0; e.fuse = -1; e.att = null; e.armorT = 0;
     e.bs = 'walk'; e.bt = 0; e.chargeCd = 3; e.slamCd = 2; e.stunDur = 1; e.chargeDir = e.chargeDir || new THREE.Vector3(); e.chargeHit = false; e.prePos = e.prePos || new THREE.Vector3();
@@ -756,6 +773,7 @@ export class Horde {
       if (e.attackT >= 0) want *= 0.35;
       // brutes charge when close
       if (e.aware && T.brute && !T.boss && !e.lured && !e.crippled && dist < 10 && dist > 3) want *= EN.brute.charge;
+      if (e.crawl) want = this.crawlStep(e, dt, want);
       e.facePlayer = false;
       if (T.jumper && e.aware && !e.outside && !e.lured && !e.crawl) want = this.jumperBrain(e, dt, dist, dy, toP, dir, want);
       if (T.boss) want = this.bossBrain(e, dt, dist, dy, toP, dir, want);
@@ -773,7 +791,7 @@ export class Horde {
         const align = clamp(fx * dir.x + fz * dir.z, 0, 1), dlen = Math.hypot(dir.x, dir.z) || 1;
         const k = 0.8; mx = (fx * k + dir.x / dlen * (1 - k)) * (0.2 + 0.8 * align) * Math.min(1, dlen); mz = (fz * k + dir.z / dlen * (1 - k)) * (0.2 + 0.8 * align) * Math.min(1, dlen);
       }
-      const acc = e.grounded ? 6 : 1.5;
+      const acc = e.grounded ? (e.crawl ? 30 : 6) : 1.5;
       if (e.jp !== 2) { e.vel.x = damp(e.vel.x, mx * want, acc, dt); e.vel.z = damp(e.vel.z, mz * want, acc, dt); } // mid-leap: ballistic, no steering
       e.kb.multiplyScalar(Math.exp(-7 * dt));
       e.prePos.copy(e.pos);
@@ -1162,29 +1180,60 @@ export class Horde {
     return { ...o, pan: clamp((dx * rx + dz * rz) / (d + 1), -0.9, 0.9), gain: clamp(10 / (d + 4), 0.06, 1) };
   }
 
-  // legless: dragging itself along on its arms
+  // crawl cadence: advance the pull phase by the distance the zombie wants to cover, return the surged speed
+  crawlStep(e, dt, want) {
+    const C = CRAWL, L = C.stride * e.scale;
+    e.cph = (e.cph + dt * want / L) % 64;
+    e.surge = crawlSurge(e.cph % 1);
+    return want * e.surge;
+  }
+  // arm over arm: one hand planted and dragging the body (it stays put on the ground while the body slides over it),
+  // the other lifting and reaching ahead. Torso lurches up and rolls toward the pulling arm, hips swivel, head bobs,
+  // legs drag behind. Built in body space (x = left, y = up, z = forward), then rotated by yaw and scaled.
   poseCrawl(e) {
-    const s = e.scale, ph = e.phase, V = (x, y, z) => new THREE.Vector3(x, y, z);
-    const att = e.attackT >= 0 ? Math.sin(Math.min(1, e.attackT / (e.type.windup + 0.2)) * Math.PI) : 0;
-    const pelvis = V(0, 0.2, 0), chest = V(Math.sin(ph) * 0.03, 0.34 + att * 0.15, 0.46 + att * 0.1);
-    const head = chest.clone().add(V(Math.sin(e.headSnap * 0.5) * 0.05, 0.17 + 0.02 * Math.sin(ph * 2), 0.15));
-    const lSh = chest.clone().add(V(-0.2, -0.04, -0.02)), rSh = chest.clone().add(V(0.2, -0.04, -0.02));
-    const arm = (sh, sx, off) => {
-      const k = Math.sin(ph + off), f = 0.5 + 0.5 * k;
-      const el = sh.clone().add(V(sx * 0.2, 0.05 + 0.12 * Math.max(0, k), 0.05 + 0.16 * f));
-      const ha = V(el.x + sx * 0.04, 0.04 + 0.1 * Math.max(0, k) + att * 0.3, el.z + 0.2 + 0.12 * f + att * 0.3);
-      return [el, ha];
+    const s = e.scale, C = CRAWL, ph = e.cph, n = Math.floor(ph), u = ph - n, side = n % 2 ? -1 : 1; // side +1: left arm pulls
+    const g = crawlLunge(u), att = e.attackT >= 0 ? Math.sin(Math.min(1, e.attackT / (e.type.windup + 0.2)) * Math.PI) : 0;
+    const Lp = CRAWL_P, V = (i, x, y, z) => Lp[i].set(x, y, z);
+    const cs = Math.cos(Math.PI * ph); // smooth -1..1 swing that flips every pull
+    // pelvis on the ground, swivelling against the pulling arm; torso propped up on the arms
+    const swiv = C.swivel * cs, roll = C.roll * cs * (1 - att);
+    const pitch = 0.3 + C.lurch * g + 0.75 * att, TL = 0.571;
+    V(0, 0, 0.15 + 0.02 * g, 0);
+    const cy0 = Math.cos(pitch), sy0 = Math.sin(pitch);
+    const chest = V(1, Math.sin(swiv) * TL * cy0 * 0.5 + side * 0.02 * g, 0.15 + TL * sy0, TL * cy0 * Math.cos(swiv * 0.5));
+    // shoulders: across the chest, rolled (the pulling side dips), slightly behind the neck along the spine
+    const rc = Math.cos(roll), rs = Math.sin(roll);
+    for (const [i, sx] of [[3, 1], [6, -1]]) V(i, chest.x + sx * 0.209 * rc, chest.y - 0.055 * sy0 - sx * 0.209 * rs, chest.z - 0.055 * cy0);
+    // head: up and forward, looking ahead; bobs up with each lunge and nods at the pause
+    V(2, chest.x + 0.02 * cs, chest.y + 0.12 + 0.05 * g - 0.03 * (1 - g) + 0.08 * att, chest.z + 0.15 - 0.03 * g);
+    // arms
+    const fr = C.reach[0], bk = C.reach[1];
+    // the pulling hand is pinned to the spot on the ground where it planted (world space), so the body visibly drags
+    // past it; the reaching hand swings from where it lifted off to the next plant ahead of the shoulder
+    const cy = Math.cos(e.yaw), sy = Math.sin(e.yaw), PL = e.plant || (e.plant = [{ n: -1, x: 0, z: 0, lx: 0, lz: 0 }, { n: -1, x: 0, z: 0, lx: 0, lz: 0 }]);
+    const arm = (sh, el, ha, sx, pulling) => {
+      const S = Lp[sh], M = PL[sx === 1 ? 0 : 1]; let hx = S.x + sx * 0.05, hy = 0.025, hz = S.z + fr;
+      if (pulling) {
+        if (M.n !== n) { M.n = n; M.x = (hx * cy + hz * sy) * s + e.pos.x; M.z = (-hx * sy + hz * cy) * s + e.pos.z; }
+        const dx = (M.x - e.pos.x) / s, dz = (M.z - e.pos.z) / s; hx = dx * cy - dz * sy; hz = dx * sy + dz * cy;
+        M.lx = hx; M.lz = hz;
+      } else {
+        if (M.n === n - 1 || M.n === n + 63) M.n = -2; // just lifted off: M.lx/lz hold the lift point
+        const r = Math.min(1, u / 0.82), k = r * r * (3 - 2 * r), x0 = M.n === -2 ? M.lx : hx, z0 = M.n === -2 ? M.lz : S.z - bk;
+        hx = lerp(x0, hx, k) + sx * 0.1 * Math.sin(Math.PI * r); hz = lerp(z0, hz, k);
+        hy += C.lift * Math.sin(Math.PI * r) + 0.04 * (u > 0.82 ? 1 - (u - 0.82) / 0.18 : 0);
+      }
+      if (att > 0 && sx === -1) { hx = S.x - 0.05; hy = S.y + 0.12 * att; hz = S.z + 0.42 * att + (1 - att) * (hz - S.z); }
+      solveArm(S, Lp[ha].set(hx, hy, hz), Lp[el], sx);
     };
-    const [lEl, lHa] = arm(lSh, -1, 0), [rEl, rHa] = arm(rSh, 1, Math.PI);
-    const leg = (sx) => {
-      const hip = pelvis.clone().add(V(sx * 0.1, 0, -0.03));
-      const knee = hip.clone().add(V(sx * 0.07, -0.1 + 0.03 * Math.sin(ph * 1.3 + sx), -0.42));
-      const foot = knee.clone().add(V(sx * 0.03, -0.04, -0.42));
-      return [hip, knee, foot];
-    };
-    const [lHip, lKn, lFt] = leg(-1), [rHip, rKn, rFt] = leg(1);
-    const Lp = [pelvis, chest, head, lSh, lEl, lHa, rSh, rEl, rHa, lHip, lKn, lFt, rHip, rKn, rFt];
-    const cy = Math.cos(e.yaw), sy = Math.sin(e.yaw);
+    arm(3, 4, 5, 1, side === 1); arm(6, 7, 8, -1, side === -1);
+    // legs drag behind, toes scraping; the knee on the pulling side kicks a little
+    for (const [hip, kn, ft, sx] of [[9, 10, 11, 1], [12, 13, 14, -1]]) {
+      const H = V(hip, sx * 0.093 * Math.cos(swiv) - Math.sin(swiv) * 0.03, 0.13, -0.03 - sx * 0.093 * Math.sin(swiv));
+      const kick = (sx === side ? g : 0) * 0.12;
+      const K = V(kn, H.x + sx * 0.06 - Math.sin(swiv) * 0.35, 0.09 + kick * 0.5, H.z - 0.39 + kick);
+      V(ft, K.x + sx * 0.02 - Math.sin(swiv) * 0.2, 0.06 + kick * 0.9, K.z - 0.33 + kick * 0.6);
+    }
     for (let i = 0; i < NJ; i++) {
       const v = Lp[i];
       e.joints[i].set((v.x * cy + v.z * sy) * s + e.pos.x, v.y * s + e.pos.y, (-v.x * sy + v.z * cy) * s + e.pos.z);

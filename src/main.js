@@ -986,6 +986,7 @@ class Game {
     this.trauma = Math.max(0, this.trauma - dt * 1.8);
     const s = this.trauma * this.trauma, t = this.time * 32;
     const k = A.camKick.value;
+    if (this.camOverride) { const c = this.camOverride; this.camera.position.set(c[0], c[1], c[2]); this.camera.rotation.set(c[4], c[3], 0, 'YXZ'); this.camera.updateMatrixWorld(); return; } // test / screenshot camera
     this.camera.position.copy(eye);
     this.camera.rotation.set(
       this.aim.rotation.x + k.x * DEG + Math.sin(t * 1.1) * s * 1.6 * DEG,
@@ -1106,5 +1107,6 @@ window.__debug = {
   crateTo(i) { game.stations.setActive(i); game.stations.crate.state = 'idle'; return this.crate(); },
   crate() { const C = game.stations.crate; return { at: C.at, state: C.state, t: +C.t.toFixed(2), result: C.result, next: C.next, spins: C.spins }; },
   forge() { const F = game.stations.forge; return { state: F.state, t: +F.t.toFixed(2), gun: F.w?.base.id || null }; },
-  frames(n) { return new Promise((r) => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }); },
+  cam(x, y, z, yaw = 0, pitch = 0) { game.camOverride = x == null ? null : [x, y, z, yaw, pitch]; game.post.vmPass.enabled = x == null; },
+    frames(n) { return new Promise((r) => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }); },
 };
