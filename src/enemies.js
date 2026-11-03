@@ -66,6 +66,17 @@ function worldRotate(bone, axis, ang) {
   bone.quaternion.premultiply(_wq);
   bone.updateMatrixWorld(true);
 }
+// turn `bone` (by weight w) so the segment to `child` points along (x, y, z) in the character's body space
+const _ad = new THREE.Vector3(), _aw = new THREE.Vector3(), _ab = new THREE.Vector3(), _aq = new THREE.Quaternion(), _aq2 = new THREE.Quaternion(), _aq3 = new THREE.Quaternion();
+function aimBone(R, bone, child, x, y, z, w = 1) {
+  if (!bone || !child || bone.scale.x < 0.01) return;
+  bone.getWorldPosition(_ab); child.getWorldPosition(_ad).sub(_ab).normalize();
+  _aw.set(x, y, z).normalize().applyQuaternion(R.root.getWorldQuaternion(_aq2));
+  _aq.setFromUnitVectors(_ad, _aw); if (w < 1) _aq.slerp(_aq2.identity(), 1 - w);
+  bone.parent.getWorldQuaternion(_aq2);
+  bone.quaternion.premultiply(_aq3.copy(_aq2).invert().multiply(_aq).multiply(_aq2));
+  bone.updateMatrixWorld(true);
+}
 const tA = new THREE.Vector3(), tB = new THREE.Vector3(), tC = new THREE.Vector3(), tD = new THREE.Vector3(), tN = new THREE.Vector3();
 const tmpC = new THREE.Color(), tmpC2 = new THREE.Color(), vA = new THREE.Vector3(), vB = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion(), tmpM = new THREE.Matrix4(), tX = new THREE.Vector3(), tY = new THREE.Vector3(), tZ = new THREE.Vector3(), tS = new THREE.Vector3();
@@ -990,7 +1001,7 @@ export class Horde {
     let vy = (dy + 0.5 * g * T0 * T0) / T0;
     if (vy * vy / (2 * g) < apex) vy = Math.sqrt(2 * g * apex);
     const T = (vy + Math.sqrt(Math.max(0, vy * vy - 2 * g * dy))) / g, vh = D / T;
-    e.vel.set(dx / D * vh, 0, dz / D * vh); e.kb.set(0, 0, 0); e.vy = vy; e.grounded = false; e.jp = 2; e.jt = 0; e.jhit = false; e.yaw = Math.atan2(dx, dz);
+    e.vel.set(dx / D * vh, 0, dz / D * vh); e.kb.set(0, 0, 0); e.vy = vy; e.jT = T; e.grounded = false; e.jp = 2; e.jt = 0; e.jhit = false; e.yaw = Math.atan2(dx, dz);
     this.hooks.audio.play(e.jkind === 'leap' ? 'jumperLeap' : 'jumperHop', this.spatial(e));
     if (e.jkind === 'hop') this.navStats.hops = (this.navStats.hops || 0) + 1; else this.navStats.leaps = (this.navStats.leaps || 0) + 1;
   }
@@ -1041,24 +1052,32 @@ export class Horde {
     }
   }
   jumperPose(e) {
-    const B = e.rig.bones, right = tX.set(1, 0, 0).applyQuaternion(e.rig.root.quaternion);
+    const B = e.rig.bones, R = e.rig, right = tX.set(1, 0, 0).applyQuaternion(R.root.quaternion), fwd = tZ.set(0, 0, 1).applyQuaternion(R.root.quaternion);
     const sc = B.Hips.parent.getWorldScale(tS).y || 1;
     let c = 0, air = 0;
     if (e.jp === 1) c = clamp(e.jt / (e.jkind === 'leap' ? EN.jumper.windup : EN.jumper.hopWindup), 0, 1);
     else if (e.jp === 2) air = 1;
     else if (e.jp === 3) c = clamp(1 - e.jt / 0.45, 0, 1) * 0.7;
     if (c > 0) {
-      B.Hips.position.y -= 0.42 * c * e.scale / sc;
-      worldRotate(B.Spine1, right, 0.7 * c);
-      worldRotate(B.LeftUpLeg, right, -1.1 * c); worldRotate(B.RightUpLeg, right, -1.1 * c);
-      worldRotate(B.LeftLeg, right, 1.7 * c); worldRotate(B.RightLeg, right, 1.7 * c);
-      worldRotate(B.LeftArm, right, 1.0 * c); worldRotate(B.RightArm, right, 1.0 * c);
-      worldRotate(B.Head, right, -0.4 * c);
+      // coiled crouch: knees deep, chest low over the knees, knuckles on the street, head cranked up at the target,
+      // quivering harder as the leap gets close
+      const q = e.jp === 1 ? Math.sin(e.jt * 70) * 0.012 * c : 0;
+      B.Hips.position.y -= 0.5 * c * e.scale / sc; B.Hips.position.x += q * e.scale / sc;
+      worldRotate(B.Spine1, right, 0.85 * c); worldRotate(B.Spine2, right, 0.15 * c);
+      worldRotate(B.LeftUpLeg, right, -1.2 * c); worldRotate(B.RightUpLeg, right, -1.2 * c);
+      worldRotate(B.LeftUpLeg, fwd, 0.22 * c); worldRotate(B.RightUpLeg, fwd, -0.22 * c);
+      worldRotate(B.LeftLeg, right, 1.85 * c); worldRotate(B.RightLeg, right, 1.85 * c);
+      worldRotate(B.LeftArm, right, 0.75 * c); worldRotate(B.RightArm, right, 0.75 * c);
+      worldRotate(B.Neck, right, -0.45 * c); worldRotate(B.Head, right, -0.5 * c);
     } else if (air) {
-      worldRotate(B.Spine1, right, 0.35);
-      worldRotate(B.LeftArm, right, -2.3); worldRotate(B.RightArm, right, -2.3);
-      worldRotate(B.LeftUpLeg, right, -0.9); worldRotate(B.RightUpLeg, right, 0.3);
-      worldRotate(B.LeftLeg, right, 1.0); worldRotate(B.RightLeg, right, 0.5);
+      // pounce: arms flung wide and forward with claws open, back arched, one knee driven up and the other leg trailing
+      const T0 = e.jT || 0.6, k = clamp(e.jt / T0, 0, 1), w = Math.sin(Math.min(1, k * 2.5) * Math.PI / 2);
+      worldRotate(B.Spine1, right, -0.15 * w); worldRotate(B.Head, right, -0.3 * w);
+      const up = 0.3 - 0.35 * k; // arms sweep from raised to reaching down at the target as it comes in
+      aimBone(R, B.LeftArm, B.LeftForeArm, 0.78, up, 0.55, w); aimBone(R, B.RightArm, B.RightForeArm, -0.78, up, 0.55, w);
+      aimBone(R, B.LeftForeArm, B.LeftHand, 0.35, up - 0.1, 0.95, w); aimBone(R, B.RightForeArm, B.RightHand, -0.35, up - 0.1, 0.95, w);
+      aimBone(R, B.LeftUpLeg, B.LeftLeg, 0.15, -0.45, 0.88, w); aimBone(R, B.LeftLeg, B.LeftFoot, 0.08, -0.95, -0.1, w);
+      aimBone(R, B.RightUpLeg, B.RightLeg, -0.12, -0.8, -0.55, w); aimBone(R, B.RightLeg, B.RightFoot, -0.05, -0.35, -0.95, w);
     }
   }
   // ---- attachments: armour plates on Brutes, glowing sac + warning ring on Bloaters (small pools, no per-zombie allocation)
@@ -1066,8 +1085,9 @@ export class Horde {
     // M14c: Brute armour = crude, dull iron plates strapped over the bulked body (Poly Haven rusty metal, darkened),
     // authored in bind-pose body space (metres, +x = its left, +z = forward) and pinned to the bone under each one
     const A = this.hooks.assets, rm = A?.textures?.rusty_metal_02;
-    const iron = rm ? pbr(A, 'rusty_metal_02', { repeat: [1.2, 1.2], color: '#6d6762', metal: true, envMapIntensity: 0.45 }) : new THREE.MeshStandardMaterial({ color: '#46423e', roughness: 0.7, metalness: 0.6 });
-    const rust = rm ? pbr(A, 'rusty_metal_02', { repeat: [0.7, 0.7], color: '#7a5a46', metal: true, envMapIntensity: 0.35 }) : new THREE.MeshStandardMaterial({ color: '#5a3a26', roughness: 0.85, metalness: 0.35 });
+    const iron = rm ? pbr(A, 'rusty_metal_02', { repeat: [1.2, 1.2], color: '#4a4846', metal: true, envMapIntensity: 0.5 }) : new THREE.MeshStandardMaterial({ color: '#46423e', roughness: 0.7, metalness: 0.6 });
+    if (rm) { iron.map = null; iron.metalnessMap = null; iron.metalness = 0.7; } // dull dark iron: keep the dents and grime, drop the orange
+    const rust = rm ? pbr(A, 'rusty_metal_02', { repeat: [0.7, 0.7], color: '#4e4844', metal: true, envMapIntensity: 0.35 }) : new THREE.MeshStandardMaterial({ color: '#5a3a26', roughness: 0.85, metalness: 0.35 });
     const strap = new THREE.MeshStandardMaterial({ color: '#2a1e16', roughness: 0.92, metalness: 0 });
     const rivetM = new THREE.MeshStandardMaterial({ color: '#8a847c', roughness: 0.45, metalness: 0.8, envMapIntensity: 0.5 });
     for (const m of [iron, rust]) { m.side = THREE.DoubleSide; m.roughness = 1; }
@@ -1092,11 +1112,11 @@ export class Horde {
     both(capG(0.16, 0.75), iron, 'Arm', 0.235, 1.455, -0.076, 0, 0, -0.35);
     both(capG(0.145, 0.7), rust, 'Arm', 0.315, 1.43, -0.076, 0, 0, -0.85);
     // bracers on the forearms with two straps, a plate on each thigh, knee cops
-    both(band(0.118, 0.118, 0.17), rust, 'ForeArm', 0.6, 1.434, -0.076, 0, 0, Math.PI / 2);
+    both(band(0.118, 0.118, 0.17), iron, 'ForeArm', 0.6, 1.434, -0.076, 0, 0, Math.PI / 2);
     both(band(0.124, 0.124, 0.025), strap, 'ForeArm', 0.54, 1.434, -0.076, 0, 0, Math.PI / 2);
     both(band(0.124, 0.124, 0.025), strap, 'ForeArm', 0.66, 1.434, -0.076, 0, 0, Math.PI / 2);
-    both(shell(0.19, 0.19, 0.22, 1.9), iron, 'UpLeg', 0.098, 0.66, 0.005, 0, 0, 0, true);
-    both(capG(0.095, 0.55), rust, 'Leg', 0.099, 0.45, 0.13, Math.PI / 2, 0, 0, true);
+    both(shell(0.19, 0.19, 0.22, 2.4), iron, 'UpLeg', 0.098, 0.66, 0.005, 0, 0, 0, true);
+    both(band(0.195, 0.195, 0.03), strap, 'UpLeg', 0.098, 0.6, 0.005, 0, 0, 0, true);
     // a dented iron skullcap with a brow band
     defs.push([capG(0.112, 0.9), iron, 'Head', W(0, 1.675, 0.005, -0.1)]);
     defs.push([band(0.098, 0.115, 0.03), strap, 'Head', W(0, 1.68, 0.006, -0.1)]);
@@ -1333,6 +1353,12 @@ export class Horde {
     const R = e.rig, T = e.type;
     if (e.crawl) { this.poseCrawl(e); if (!e.crawlRef) { e.crawlRef = true; this.crawlBase(e); } solveFromJoints(R, e.joints, e.ref); return; }
     R.root.position.copy(e.pos); R.root.rotation.set(0, e.yaw, 0); R.root.scale.setScalar(e.scale);
+    if (T.jumper && e.jp === 2) { // M14c: the body rides a visible arc above the flight path, nose up on the way up, diving on the way down
+      const k = clamp(e.jt / (e.jT || 0.6), 0, 1);
+      e.jLift = (e.jkind === 'leap' ? EN.jumper.arcLift : EN.jumper.arcLift * 0.4) * Math.sin(Math.PI * k);
+      R.root.position.y += e.jLift;
+      R.root.rotation.set(clamp(0.25 - Math.atan2(e.vy, Math.hypot(e.vel.x, e.vel.z) + 0.01) * 0.7, -0.5, 0.9), e.yaw, 0, 'YXZ');
+    } else e.jLift = 0;
     const G = e.gait, sp = e.speedNow / e.scale; // per unit of body scale
     // one-shot / state clips
     let clip = null, ts = 1, start = 0;
@@ -1399,8 +1425,8 @@ export class Horde {
       worldRotate(B.Spine, right, -0.14);
       if (!(e.lost & (1 << 6))) worldRotate(B.LeftUpLeg, fwd, 0.13);
       if (!(e.lost & (1 << 8))) worldRotate(B.RightUpLeg, fwd, -0.13);
-      if (!(e.lost & (1 << 2))) worldRotate(B.LeftArm, fwd, (0.5 + 0.08 * s1) * atk);
-      if (!(e.lost & (1 << 4))) worldRotate(B.RightArm, fwd, (-0.5 + 0.08 * s1) * atk);
+      if (!(e.lost & (1 << 2))) worldRotate(B.LeftArm, fwd, (0.36 + 0.06 * s1) * atk); worldRotate(B.LeftArm, right, 0.25 * atk);
+      if (!(e.lost & (1 << 4))) worldRotate(B.RightArm, fwd, (-0.36 + 0.06 * s1) * atk); worldRotate(B.RightArm, right, 0.25 * atk);
       B.Hips.position.y += (0.025 * Math.abs(s1) * moving - 0.02) * e.scale / sc;
     } else if (T.jumper) {
       // longer legs lift the hips; a low predatory hunch with the head craned up at its prey

@@ -63,7 +63,7 @@ const ZOMBIE_SHADER = (u) => (sh) => {
           base = mix(base, vec3(0.16, 0.1, 0.14), smoothstep(0.62, 0.8, g1) * 0.5);
           base *= 0.75 + g2 * 0.35;
           if (uPale > 0.0) { // Bloater: swollen, pale green-grey, blotchy, with dark bruising and a waxy sheen
-            vec3 pale = vec3(0.47, 0.52, 0.41) * (0.62 + lum * 1.1);
+            vec3 pale = vec3(0.4, 0.45, 0.35) * (0.55 + lum * 1.0);
             pale = mix(pale, vec3(0.33, 0.4, 0.25) * (0.75 + lum), smoothstep(0.42, 0.74, g3) * 0.75);
             pale = mix(pale, vec3(0.36, 0.28, 0.34), smoothstep(0.64, 0.82, g1) * 0.45);
             pale *= 0.82 + g2 * 0.26;
@@ -77,6 +77,7 @@ const ZOMBIE_SHADER = (u) => (sh) => {
           diffuseColor.rgb = mix(base, t * vec3(0.7, 0.22, 0.18), red * 0.75);
         #endif
         #ifdef Z_CLOTH
+          if (uPale > 0.0 && vGlow > 0.12) discard; // the Bloater's gut has burst its shirt open
           vec3 cl = vLocal.y / 9.0 > 0.98 ? uShirt : uPants;
           vec3 base = cl * (0.45 + lum * 1.9);
           base *= mix(vec3(1.0), vec3(0.42, 0.36, 0.28), smoothstep(0.35, 0.75, grime)); // dirt and soot
@@ -103,9 +104,9 @@ const ZOMBIE_SHADER = (u) => (sh) => {
         float vn = zn(vLocal * 1.5 + 5.0), vein = smoothstep(0.43, 0.5, vn) * smoothstep(0.57, 0.5, vn);
         float inner = smoothstep(0.25, 0.8, zn(vLocal * 0.6 + 9.0));
         vec3 gc = vec3(0.7, 1.0, 0.22);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.5, 0.2) * (0.6 + inner * 0.5), vGlow * 0.55 * step(0.001, uBloat + uSwell));
-        totalEmissiveRadiance += gc * vGlow * (uBloat * (0.06 + inner * 0.22 + vein * 1.5) + uSwell * (0.6 + inner * 0.8 + vein * 3.0));
-        totalEmissiveRadiance += gc * uSwell * uSwell * (0.08 + vein * 0.6) * (1.0 - vGlow);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.27, 0.33, 0.2) * (0.45 + inner * 0.5) + vec3(0.06, 0.02, 0.05) * vein, vGlow * 0.75 * step(0.001, uBloat + uSwell));
+        totalEmissiveRadiance += gc * vGlow * (uBloat * (0.03 + inner * 0.2 + vein * 1.5) * (0.35 + 0.65 * vGlow) + uSwell * (0.25 + inner * 0.45 + vein * 2.2));
+        totalEmissiveRadiance += gc * uSwell * uSwell * (0.05 + vein * 0.5) * (1.0 - vGlow);
       }
       { // hit flash: hot rim + a faint body glow, so a struck husk pops without turning into a white mannequin
         float fres = pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 2.0);
@@ -134,17 +135,19 @@ export const BODIES = {
     },
   },
   bloater: {
-    r: { Hips: [1.3, 1, 1.35], Spine: [1.35, 1, 1.45], Spine1: [1.25, 1, 1.3], Spine2: [1.15, 1, 1.15], Neck: 1.75, Head: 1.06,
+    r: { Hips: [1.3, 1, 1.3], Spine: [1.3, 1, 1.3], Spine1: [1.22, 1, 1.25], Spine2: [1.15, 1, 1.15], Neck: 1.75, Head: 1.06,
       Shoulder: 1.3, Arm: 1.42, ForeArm: 1.3, Hand: 1.2, Finger: 1.25, UpLeg: 1.5, Leg: 1.38, Foot: 1.15, ToeBase: 1.1 },
     len: {},
-    extra(p, wb, o, sw) { // the gut: a huge sagging belly, mostly in front, that holds the glow
-      const wt = (wb.Hips || 0) + (wb.Spine || 0) + (wb.Spine1 || 0) + (wb.Spine2 || 0) * 0.6 + (wb.UpLeg || 0) * 0.35;
-      const hx = p.x, hz = p.z + 0.02, hl = Math.hypot(hx, hz) || 1, nx = hx / hl, nz = hz / hl;
-      const bell = bump(p.y, 1.06, 0.2), front = Math.max(0, Math.min(1, (nz + 0.35) / 0.95));
-      const k = bell * (0.3 + 0.7 * front) * wt;
-      o.x += nx * 0.15 * k; o.z += nz * 0.2 * k; o.y -= 0.045 * bell * front * wt; // sags
-      sw.glow = Math.min(1, bell * front * front * wt * 1.25);
-      sw.x += nx * 0.075 * k; sw.z += nz * 0.095 * k; sw.y -= 0.02 * k;
+    extra(p, wb, o, sw) { // the gut: skin inside a big egg-shaped belly is pushed out onto its surface (front only)
+      const wt = Math.min(1, (wb.Hips || 0) + (wb.Spine || 0) + (wb.Spine1 || 0) + (wb.Spine2 || 0) * 0.6 + (wb.UpLeg || 0) * 0.25);
+      const qx = p.x + o.x, qy = p.y + o.y, qz = p.z + o.z; // after the bone thickening
+      const dx = qx, dy = qy - 1.02, dz = qz - 0.02, dl = Math.hypot(dx, dy, dz) || 1, nx = dx / dl, ny = dy / dl, nz = dz / dl;
+      const t = 1 / Math.hypot(nx / 0.27, ny / (ny < 0 ? 0.22 : 0.26), nz / 0.33); // egg: rounder on top, tucked under
+      const front = Math.max(0, Math.min(1, (nz + 0.05) / 0.5)), k = wt * front * front * (3 - 2 * front);
+      const push = Math.max(0, t - dl) * k;
+      o.x += nx * push; o.y += ny * push; o.z += nz * push;
+      sw.glow = Math.min(1, k * Math.min(1, (push + 0.02) / 0.07) * (dl < t + 0.02 ? 1 : 0.4));
+      sw.x += nx * 0.07 * sw.glow; sw.y += ny * 0.05 * sw.glow; sw.z += nz * 0.08 * sw.glow;
     },
     swell: 0.22, // whole-body swell at uSwell = 1 (share of each bone's thickness)
   },

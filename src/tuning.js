@@ -199,6 +199,7 @@ export const ENEMIES = {
     leapMin: 3.6, leapMax: 10, windup: 0.6, cooldown: [2.4, 3.8], air: [0.48, 0.8], // seconds crouching, then seconds in the air (longer for longer jumps)
     hopCooldown: 0.9, hopWindup: 0.18, hopAhead: 2.4, hopMaxHeight: 1.9,           // hops over low cover: reach ahead (m), tallest thing it will clear (m)
     landRadius: 1.5, knock: 5,                                                       // landing hit: radius around the player, knockback
+    arcLift: 0.55,                                                                   // M14c: extra height (m) the body is drawn above its flight path at mid-leap (looks only)
   },
   brute: {
     hp: 780, speed: 2.9, scale: 1.55, dmg: 46, points: 450,
