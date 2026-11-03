@@ -103,7 +103,7 @@ const ZOMBIE_SHADER = (u) => (sh) => {
         // during the death swell the whole body heats up
         float vn = zn(vLocal * 1.5 + 5.0), vein = smoothstep(0.43, 0.5, vn) * smoothstep(0.57, 0.5, vn);
         float inner = smoothstep(0.25, 0.8, zn(vLocal * 0.6 + 9.0));
-        vec3 gc = vec3(0.7, 1.0, 0.22);
+        vec3 gc = vec3(0.5, 0.85, 0.16) * 0.7; // sickly bile green, kept dim so it reads as glowing through skin
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.27, 0.33, 0.2) * (0.45 + inner * 0.5) + vec3(0.06, 0.02, 0.05) * vein, vGlow * 0.75 * step(0.001, uBloat + uSwell));
         totalEmissiveRadiance += gc * vGlow * (uBloat * (0.03 + inner * 0.2 + vein * 1.5) * (0.35 + 0.65 * vGlow) + uSwell * (0.25 + inner * 0.45 + vein * 2.2));
         totalEmissiveRadiance += gc * uSwell * uSwell * (0.05 + vein * 0.5) * (1.0 - vGlow);

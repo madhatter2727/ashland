@@ -1086,11 +1086,11 @@ export class Horde {
     // authored in bind-pose body space (metres, +x = its left, +z = forward) and pinned to the bone under each one
     const A = this.hooks.assets, rm = A?.textures?.rusty_metal_02;
     const iron = rm ? pbr(A, 'rusty_metal_02', { repeat: [1.2, 1.2], color: '#4a4846', metal: true, envMapIntensity: 0.5 }) : new THREE.MeshStandardMaterial({ color: '#46423e', roughness: 0.7, metalness: 0.6 });
-    if (rm) { iron.map = null; iron.metalnessMap = null; iron.metalness = 0.7; } // dull dark iron: keep the dents and grime, drop the orange
+    if (rm) { iron.map = null; iron.metalnessMap = null; iron.metalness = 0.45; iron.color.set('#3a3734'); } // dull dark iron: keep the dents and grime, drop the orange
     const rust = rm ? pbr(A, 'rusty_metal_02', { repeat: [0.7, 0.7], color: '#4e4844', metal: true, envMapIntensity: 0.35 }) : new THREE.MeshStandardMaterial({ color: '#5a3a26', roughness: 0.85, metalness: 0.35 });
     const strap = new THREE.MeshStandardMaterial({ color: '#2a1e16', roughness: 0.92, metalness: 0 });
     const rivetM = new THREE.MeshStandardMaterial({ color: '#8a847c', roughness: 0.45, metalness: 0.8, envMapIntensity: 0.5 });
-    for (const m of [iron, rust]) { m.side = THREE.DoubleSide; m.roughness = 1; }
+    for (const m of [iron, rust]) { m.side = THREE.DoubleSide; m.roughness = 1; m.envMapIntensity = Math.min(m.envMapIntensity ?? 1, 0.3); }
     // curved plate: a slice of an elliptic cylinder (axis = local y), centred on +z
     const shell = (rx, rz, h, arc, seg = 14) => { const g = new THREE.CylinderGeometry(1, 1, 1, seg, 1, true, -arc / 2, arc); g.scale(rx, h, rz); return g; };
     const band = (rx, rz, h) => { const g = new THREE.CylinderGeometry(1, 1, 1, 24, 1, true); g.scale(rx, h, rz); return g; };
