@@ -1,4 +1,4 @@
-# M14 logic tests (no screenshots): spitter gone, jumpers cross cover, brute armour/leg numbers, bloater blast radius,
+# M14 logic tests (no screenshots; M14c: bloater waits cover its 1 s death swell): spitter gone, jumpers cross cover, brute armour/leg numbers, bloater blast radius,
 # every special-wave type runs and completes, waves 2..13 full sim with zero errors. usage: test_m14.py URL [cases]
 import sys, json
 from playwright.sync_api import sync_playwright
@@ -72,19 +72,19 @@ with sync_playwright() as p:
           for (let r = 1; r <= 9; r++) { const z = H.spawn('runner', new V(CX + r * Math.cos(r), 0, CZ + r * Math.sin(r))); z.aware = false; z.alertIn = undefined; z.hp = z.maxHp = 400; zs.push([r, z]); }
           let blasts = 0; const oh = H.hooks.onBloaterBurst; H.hooks.onBloaterBurst = (p, e) => { blasts++; oh(p, e); };
           H.damage(b, 99999, 'body', b.joints[1].clone(), new V(0, 0, 1), { id: 'ar' }, 0); if (b.hp <= 0 && !b.dead) H.kill(b, b.pos.clone(), new V(0, 0, 1), 30, { id: 'ar' }, false);
-          for (let f = 0; f < 15; f++) { game.time += 1/30; P.pos.set(-30, 0, -30); H.update(1/30, game.time, game.camera); }
+          for (let f = 0; f < 45; f++) { game.time += 1/30; P.pos.set(-30, 0, -30); H.update(1/30, game.time, game.camera); }
           out.blasts = blasts; out.zombies = zs.map(([r, z]) => ({ m: r, lost: Math.round(400 - Math.max(0, z.hp)), dead: z.dead }));
           out.zombieRadiusM = Math.max(0, ...out.zombies.filter((z) => z.lost > 0).map((z) => z.m));
           // 2) player at 1..8 m: damage taken
           for (const r of [1, 2, 3, 4, 5, 5.5, 6, 7]) { H.reset(); P.health = P.maxHealth = 100; P.alive = true; game.god = false; game.player.hurt = P.constructor.prototype.hurt; game.immuneT = 0;
             const b2 = H.spawn('bloater', new V(CX, 0, CZ)); b2.aware = false; P.pos.set(CX + r, 0, CZ); P.vel.set(0, 0, 0);
             H.damage(b2, 99999, 'body', b2.joints[1].clone(), new V(0, 0, 1), { id: 'ar' }, 0); if (b2.hp <= 0 && !b2.dead) H.kill(b2, b2.pos.clone(), new V(0, 0, 1), 30, { id: 'ar' }, false);
-            for (let f = 0; f < 10; f++) { game.time += 1/30; P.pos.set(CX + r, 0, CZ); H.update(1/30, game.time, game.camera); }
+            for (let f = 0; f < 40; f++) { game.time += 1/30; P.pos.set(CX + r, 0, CZ); H.update(1/30, game.time, game.camera); }
             out.player.push({ m: r, dmg: Math.round(100 - P.health) }); }
           // 3) chain: two bloaters 3 m apart
           H.reset(); P.pos.set(-30, 0, -30); P.health = 100; game.god = true; P.hurt = () => {}; blasts = 0; const c1 = H.spawn('bloater', new V(CX, 0, CZ)), c2 = H.spawn('bloater', new V(CX + 3, 0, CZ)); c1.aware = c2.aware = false;
           H.damage(c1, 99999, 'body', c1.joints[1].clone(), new V(0, 0, 1), { id: 'ar' }, 0); if (c1.hp <= 0 && !c1.dead) H.kill(c1, c1.pos.clone(), new V(0, 0, 1), 30, { id: 'ar' }, false);
-          for (let f = 0; f < 20; f++) { game.time += 1/30; P.pos.set(-30, 0, -30); H.update(1/30, game.time, game.camera); }
+          for (let f = 0; f < 80; f++) { game.time += 1/30; P.pos.set(-30, 0, -30); H.update(1/30, game.time, game.camera); }
           out.chainBlasts = blasts; out.pulse = (() => { H.reset(); const e = H.spawn('bloater', new V(CX, 0, CZ + 5)); e.aware = false; const r = {}; for (const f of [1, 0.6, 0.3, 0.1]) { e.hp = e.maxHp * f; let beats = 0, last = e.lastBeat; for (let i = 0; i < 90; i++) { game.time += 1/30; H.update(1/30, game.time, game.camera); } const a = e.pulsePh; for (let i = 0; i < 30; i++) { game.time += 1/30; H.update(1/30, game.time, game.camera); } r['hp' + Math.round(f * 100)] = +(e.pulsePh - a).toFixed(2) + ' beats/s'; } return r; })();
           H.hooks.onBloaterBurst = oh; H.reset(); game.god = true; game.state = 'play'; return out; }""")
     if 'special' in cases:
