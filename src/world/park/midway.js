@@ -127,7 +127,7 @@ export function stall(ctx, x, z, rot, i, y0 = 0, counter = 1) {
       const aw = new THREE.BoxGeometry(L + 0.2, 0.06, 1.05); aw.rotateX(0.22); aw.translate(0, Hs - 0.42, 0.5); S.geo(body === M.woodRed ? M.woodGreen : M.woodRed, aw);
       for (let k = 0; k < 12; k++) { const sc = archSurround(-L / 2 - 0.1 + k * (L + 0.2) / 12, -L / 2 - 0.1 + (k + 1) * (L + 0.2) / 12, 0, 0, { w: 0.03, d: 0.03, seg: 0.12 }); sc.rotateX(Math.PI); sc.translate(0, Hs - 0.52, 1.02); S.geo(trim, sc); }
       for (const sx of [-1, 0, 1]) { const br = new THREE.BoxGeometry(0.06, 0.06, 1.0); br.rotateX(-0.75); br.translate(sx * (L / 2 - 0.1), Hs - 0.75, 0.45); S.geo(M.iron, br); }
-      bulbRow(ctx, S, -L / 2, Hs - 0.62, 1.04, L / 2, Hs - 0.62, 1.04, 0.38, 0.08, i * 9 + 3);
+      bulbRow(ctx, S, -L / 2, Hs - 0.62, 1.04, L / 2, Hs - 0.62, 1.04, 0.38, 0.22, i * 9 + 3);
       if (!stacked) { // arched crest board with the game's name
         const crest = new THREE.Shape(); crest.moveTo(-L / 2 + 0.3, 0); crest.lineTo(L / 2 - 0.3, 0); crest.lineTo(L / 2 - 0.3, 0.35); crest.quadraticCurveTo(0, 1.05, -L / 2 + 0.3, 0.35); crest.closePath();
         const cg = new THREE.ExtrudeGeometry(crest, { depth: 0.08, bevelEnabled: false }); cg.translate(0, Hs - 0.05, -0.12); S.geo(body, cg);
