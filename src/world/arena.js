@@ -13,6 +13,7 @@ import { buildEsplanade } from './park/esplanade.js';
 import { buildMidway, buildCarousel, stall } from './park/midway.js';
 import { buildGardens } from './park/gardens.js';
 import { flushBulbs } from './park/showfront.js';
+import { parkMap, popcornCart, fingerPost } from './park/themed.js';
 
 export const ARENA = { half: 36, cell: 1 };
 export let PARK_MATS = null;
@@ -126,6 +127,13 @@ export function buildArena(scene, quality, A) {
   for (const [x, z, rot, i, y0, cs] of stalls) stall(ctx, x, z, rot, i, y0, cs);
   stairs(-12.95, -5.4, 1, 0, 2.2, 2.6, 10, M.boards);
   buildCarousel(ctx, 15.7, 9);
+  // the park hub: a faded park guide by the way in, popcorn carts left where they stood, finger posts to the rides
+  parkMap(ctx, -9, 18, 0.35);
+  popcornCart(ctx, -6, 13.5, 0.4, 1); popcornCart(ctx, 12, -4, -1.2, 2); popcornCart(ctx, -8, -14, 2.0, 3);
+  const toward = (x, z, tx, tz) => Math.atan2(-(tz - z), tx - x);
+  fingerPost(ctx, -2, 12, [['PALACE OF HOURS', toward(-2, 12, 0, -36), '#5a1a14'], ['MIDWAY  ·  GAMES', toward(-2, 12, 30, 0), '#1f5b57'], ['THE GRAND WHEEL', toward(-2, 12, -64, -14), '#8a6a1c']]);
+  fingerPost(ctx, -14, 0, [['SPLASH FLUME', toward(-14, 0, -29, 0), '#1f5b57'], ['IRON COMET', toward(-14, 0, 70, 0), '#5a1a14'], ['MAIN GATE', toward(-14, 0, 0, 40), '#3b2f5a']]);
+
 
   // ---------- stone planters gone wild (old jersey-barrier cover) ----------
   const planter = (x, z, rot) => {

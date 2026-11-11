@@ -2,14 +2,19 @@
 // ASHLAND sign in bulb letters under an iron arch; octagonal ticket kiosks either side, a row of brass
 // turnstiles beyond the arch, faded attraction bills in iron cases. Either side, four boardwalk hotels:
 // board-and-batten in deep red, bottle green and cream, deep porches with turned posts, balconies, plywood
-// over half the windows, slate mansards, and the dead neon script of the HOTEL VESPER on its roof.
+// over half the windows, steep shingle gables, and the dead neon script of the HOTEL VESPER on its roof. Their ground
+// floors are the park street's shops: souvenirs, taffy, photographs, a penny arcade. Torn banners line the way in.
 import * as THREE from 'three';
 import { Frame, P, molding, mansard, dome, lathe, merge, pediment, ironRailing, balustrade, archSurround } from './kit.js';
 import { storey } from './facade.js';
 import { paintedSign } from './signs.js';
 import { bulbLetters, bulbRow, deadNeon, ticketKiosk, turnstile, posterCase } from './showfront.js';
+import { gableRoof, crossGable, bannerPole } from './themed.js';
 
 const HOTELS = ['HOTEL MERIDIAN', 'THE CARLISLE', 'HOTEL VESPER', 'THE BELVEDERE'];
+// the ground floors of the lodges became the park street's shops
+const SHOPS = [['SOUVENIRS', 'CURIOS  ·  NOVELTIES  ·  POSTCARDS', 'GIFTS', 'CURIOS'], ['SALT WATER TAFFY', 'CANDY  ·  POPCORN  ·  FUDGE', 'TAFFY', 'FUDGE'],
+  ['PHOTOGRAPHS', 'YOUR PORTRAIT IN FIVE MINUTES', 'PHOTOS', 'OPEN'], ['PENNY ARCADE', 'GAMES OF SKILL  ·  FORTUNES TOLD', 'ARCADE', 'FORTUNES']];
 const place = (F, mesh, x, y, z) => { mesh.position.copy(F.point(x, y, z)); mesh.rotation.y = F.rotY; return mesh; };
 const signPlane = (text, w, h, opts) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: paintedSign(text, opts), roughness: 0.8 }));
 
@@ -62,12 +67,13 @@ export function buildEsplanade(ctx) {
     const p = F.point(x - 0.35, 0, -7.6); turnstile(ctx, p.x, p.z, F.rotY + (i % 3 === 1 ? 0.4 : 0));
     F.geo(M.iron, ironRailing(1.6, 1.05, 0.14).rotateY(Math.PI / 2).translate(x + 0.35, 0, -7.6));
   }
+  for (const [x, z, i] of [[-5.5, 21, 0], [5.5, 21, 1], [-5.5, 27, 2], [5.5, 27, 3]]) bannerPole(ctx, x, z, i);
   const bent = ironRailing(1.6, 1.05, 0.14); bent.rotateY(Math.PI / 2); bent.rotateZ(0.5); bent.translate(0.1, 0.2, -7.4); F.geo(M.iron, bent);
 }
 
 function hotel(ctx, F, xa, xb, title, seed) {
   const { B, M, rr, scene } = ctx;
-  const body = [M.woodRed, M.woodGreen, M.woodRed, M.woodCream][seed - 1], trim = body === M.woodCream ? M.woodGreen : M.woodCream;
+  const body = [M.woodYellow, M.woodTeal, M.woodRed, M.woodCream][seed - 1], trim = body === M.woodCream ? M.woodRed : M.woodCream;
   F.col(xa, xb, 0, 20, -8, 0, { surface: 'wood' });
   // ---- deep porch: recessed ground floor, plank deck, turned posts, fretwork brackets, balustrade
   const dz = -2.4, G = F.sub(0, dz);
@@ -87,8 +93,20 @@ function hotel(ctx, F, xa, xb, title, seed) {
   F.box(body, xa, xb, 5.1, 5.3, dz, 0.05);
   F.geo(trim, balustrade(xb - xa - 0.4, { h: 0.9, pitch: 0.2, rail: 0.1 }).translate((xa + xb) / 2, 5.3, -0.05));
   bulbRow(ctx, F, xa + 0.3, 4.8, 0.12, xb - 0.3, 4.8, 0.12, 0.45, 0.05, seed * 7);
+  // ---- the shop: a fascia board over the porch and blade signs hung off the posts
+  { const sh = SHOPS[seed - 1], fw = Math.min(xb - xa - 3, 10.5), fx = (xa + xb) / 2 + (seed % 2 ? -1.2 : 1.2);
+    F.box(trim, fx - fw / 2 - 0.2, fx + fw / 2 + 0.2, 5.05, 6.25, 0.06, 0.2);
+    scene.add(place(F, signPlane(sh[0], fw, 1.0, { bg: ['#8f2a20', '#1f5b57', '#c99a2e', '#5a1a14'][seed - 1], fg: seed === 3 ? '#3a120e' : '#ecd29a', sub: sh[1], h: 256, w: 2048 }), fx, 5.65, 0.21));
+    bulbRow(ctx, F, fx - fw / 2 - 0.1, 6.32, 0.22, fx + fw / 2 + 0.1, 6.32, 0.22, 0.32, 0.2, seed * 13);
+    for (const [k, txt] of [[0.22, sh[2]], [0.78, sh[3]]]) {
+      const x = xa + (xb - xa) * k, bm = new THREE.MeshStandardMaterial({ map: paintedSign(txt, { bg: seed % 2 ? '#5a1a14' : '#1f5b57', fg: '#ecd29a', h: 256, w: 768 }), roughness: 0.8, side: THREE.DoubleSide });
+      F.box(M.iron, x - 0.03, x + 0.03, 4.0, 4.06, -0.2, 1.25);
+      const bl = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.4), bm); bl.position.copy(F.point(x, 3.72, 0.72)); bl.rotation.y = F.rotY + Math.PI / 2; bl.rotation.x = (rr() - 0.5) * 0.08; scene.add(bl);
+      F.box(trim, x - 0.04, x + 0.04, 3.5, 3.95, 0.12, 1.32);
+    }
+  }
   // ---- upper floors
-  const floors = 4, fh = 3.4, y0 = 6.0;
+  const floors = 3, fh = 3.4, y0 = 6.0;
   F.box(body, xa, xb, 4.9, y0, dz, -0.3);
   for (let f = 0; f < floors; f++) {
     const yb = y0 + f * fh;
@@ -101,27 +119,24 @@ function hotel(ctx, F, xa, xb, title, seed) {
   F.geo(trim, molding(P.cornice(1.0), xa, xb, ytop + 0.15, 0));
   const mods = []; for (let x = xa + 0.4; x < xb - 0.2; x += 0.9) { const g = new THREE.BoxGeometry(0.14, 0.5, 0.42); g.translate(x, ytop - 0.1, 0.21); mods.push(g); }
   F.geo(trim, merge(mods));
-  const bw = Math.min(xb - xa - 3, 11), bx = (xa + xb) / 2;
+  // lodge roof: a steep shingle gable with deep eaves, two front cross-gables with stick-work, name board between
+  const roofMat = seed % 2 ? M.shingleRed : M.copper, bw = Math.min(xb - xa - 3, 11), bx = (xa + xb) / 2, gw = Math.min(5.2, (xb - xa) * 0.3);
+  F.box(body, xa, xb, ytop, ytop + 0.4, -8, -0.1);
+  gableRoof(F, roofMat, xa, xb, ytop + 0.3, -8, 0.0, 5.6, { over: 0.8 });
+  for (const gx of [xa + gw / 2 + 0.6, xb - gw / 2 - 0.6]) crossGable(F, M, roofMat, body, trim, gx, gw, ytop + 0.2, 4.0, -4, 0.0, { over: 0.7 });
+  for (const ex of [xa - 0.05, xb + 0.05]) { const g = new THREE.Shape(); g.moveTo(-8, 0); g.lineTo(-4, 5.4); g.lineTo(0, 0); g.closePath(); const w = new THREE.ExtrudeGeometry(g, { depth: 0.2, bevelEnabled: false }); w.rotateY(-Math.PI / 2); w.translate(ex + 0.1, ytop + 0.3, 0); F.geo(body, w); }
   if (title !== 'HOTEL VESPER') {
-    F.box(body, bx - bw / 2 - 0.3, bx + bw / 2 + 0.3, ytop + 0.7, ytop + 2.6, -0.4, -0.15);
-    F.geo(trim, pediment(bx, ytop + 2.6, bw + 0.6, { h: 0.7, d: 0.3, round: true }).translate(0, 0, -0.4));
-    scene.add(place(F, signPlane(title, bw, 1.4, { bg: seed % 2 ? '#24382c' : '#4a1512', fg: '#d9b45c', h: 300, w: 2048, sub: 'BOARDWALK  ·  SEA AIR  ·  DANCING' }), bx, ytop + 1.65, -0.13));
+    const nw = Math.max(4, xb - xa - gw * 2 - 2.4);
+    F.box(trim, bx - nw / 2 - 0.2, bx + nw / 2 + 0.2, ytop + 0.4, ytop + 2.3, 0.0, 0.18);
+    scene.add(place(F, signPlane(title, nw, 1.5, { bg: seed % 2 ? '#1f5b57' : '#8f2a20', fg: '#e8c86a', h: 300, w: 2048, sub: 'BOARDWALK  ·  SEA AIR  ·  DANCING' }), bx, ytop + 1.35, 0.19));
+    bulbRow(ctx, F, bx - nw / 2, ytop + 2.38, 0.2, bx + nw / 2, ytop + 2.38, 0.2, 0.34, 0.1, seed * 5);
   } else {
-    // the Vesper's rooftop sign: dead neon script on an iron lattice frame, one letter still faintly alight
+    // the Vesper's rooftop sign: dead neon script on an iron lattice frame
     const fy = ytop + 1.0;
-    F.geo(M.iron, ironRailing(bw, 3.2, 0.45).translate(bx, fy, -1.2));
-    F.box(M.iron, bx - bw / 2, bx + bw / 2, fy + 3.1, fy + 3.25, -1.3, -1.1);
-    deadNeon(ctx, F, 'Hotel Vesper', bx, fy + 1.7, -1.05, bw - 0.4, 2.5, { color: '#5d1a1a', glow: '#ff3a28', lit: 0.0 });
-    deadNeon(ctx, F, 'VACANCY', bx, fy - 0.15, -1.0, 3.2, 0.6, { color: '#2a4a3a', glow: '#3aff9a', font: '700', lit: 0.0 });
+    F.geo(M.iron, ironRailing(bw, 3.2, 0.45).translate(bx, fy, 0.3));
+    F.box(M.iron, bx - bw / 2, bx + bw / 2, fy + 3.1, fy + 3.25, 0.2, 0.4);
+    deadNeon(ctx, F, 'Hotel Vesper', bx, fy + 1.7, 0.45, bw - 0.4, 2.5, { color: '#5d1a1a', glow: '#ff3a28', lit: 0.0 });
+    deadNeon(ctx, F, 'VACANCY', bx, fy - 0.15, 0.5, 3.2, 0.6, { color: '#2a4a3a', glow: '#3aff9a', font: '700', lit: 0.0 });
   }
-  // slate mansard with gabled timber dormers + chimneys
-  const rf = mansard(xb - xa - 0.4, 7.4, 3.8, 1.3, 0.9); rf.translate((xa + xb) / 2, ytop + 0.8, -3.9); F.geo(M.slate, rf);
-  for (let x = xa + 1.8; x < xb - 1.2; x += 2.9) {
-    if (title === 'HOTEL VESPER' && Math.abs(x - bx) < bw / 2 + 0.5) continue;
-    F.box(trim, x - 0.7, x + 0.7, ytop + 1.0, ytop + 2.9, -1.4, -0.35);
-    F.geo(M.slate, pediment(x, ytop + 2.9, 1.7, { h: 0.75, d: 1.3 }).translate(0, 0, -1.5));
-    F.box(M.dark, x - 0.42, x + 0.42, ytop + 1.25, ytop + 2.6, -0.4, -0.33);
-    F.box(rr() < 0.5 ? M.plywood : M.woodGreen, x - 0.42, x - 0.02, ytop + 1.25, ytop + 2.6, -0.36, -0.3);
-  }
-  for (const fx of [0.12, 0.88]) { const cx = xa + (xb - xa) * fx; F.box(M.brickDeep, cx - 0.8, cx + 0.8, ytop + 3.5, ytop + 7.2, -5.2, -4.0); F.box(M.stoneDark, cx - 0.92, cx + 0.92, ytop + 7.2, ytop + 7.45, -5.32, -3.88); }
+  for (const fx of [0.3, 0.7]) { const cx = xa + (xb - xa) * fx; F.box(M.brickDeep, cx - 0.6, cx + 0.6, ytop + 3.5, ytop + 7.4, -6.2, -5.0); F.box(M.stoneDark, cx - 0.72, cx + 0.72, ytop + 7.4, ytop + 7.6, -6.32, -4.88); }
 }

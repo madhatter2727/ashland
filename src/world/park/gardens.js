@@ -1,6 +1,6 @@
 // THE GARDENS (west edge + west plaza): a long cast-iron orangery with a glass dome over each wing, most of
 // its panes gone; inside, the plants it was built for have died where they stood. Out front: a dry
-// reflecting pool with a dark bronze horse rearing over weeds, clipped hedges run wild, dead trees.
+// splash pool of the old flume ride, a boat stranded in it and the broken trough above, hedges run wild, dead trees.
 import * as THREE from 'three';
 import { Frame, P, molding, moldingRing, column, lathe, merge, deadTree, ironRailing } from './kit.js';
 import { mulberry } from '../../core/util.js';
@@ -64,7 +64,7 @@ export function buildGardens(ctx) {
   for (let k = 1; k < 18; k++) { const a = (k / 18) * Math.PI, g = new THREE.BoxGeometry(0.025, 0.4, 0.025); g.translate(0, 3.7, 0); g.rotateZ(Math.PI / 2 - a); g.translate(0, 5.1, 0); arch.push(g); }
   F.geo(M.iron, merge(arch));
 
-  // ---------- dry reflecting pool + rearing marble horse ----------
+  // ---------- the flume's dry splash pool ----------
   const px0 = -34, px1 = -24.5, pz0 = -4.5, pz1 = 5.5, ch = 0.42, cw = 0.5;
   for (const [a0, a1, b0, b1] of [[px0, px1, pz0, pz0 + cw], [px0, px1, pz1 - cw, pz1], [px0, px0 + cw, pz0, pz1], [px1 - cw, px1, pz0, pz1]]) {
     B.col(a0, a1, 0, ch, b0, b1, { walk: true });
@@ -74,12 +74,28 @@ export function buildGardens(ctx) {
   { const g = new THREE.PlaneGeometry(px1 - px0 - 2 * cw, pz1 - pz0 - 2 * cw); g.rotateX(-Math.PI / 2); g.translate((px0 + px1) / 2, 0.012, (pz0 + pz1) / 2); B.add(M.mossCobble, g);
     const w = new THREE.CircleGeometry(2.2, 24); w.scale(1.6, 1, 1); w.rotateX(-Math.PI / 2); w.translate(px0 + 2.8, 0.02, pz1 - 2.0); B.add(M.water, w); }
   const fx = (px0 + px1) / 2, fz = (pz0 + pz1) / 2;
-  { const ped = merge([new THREE.BoxGeometry(1.8, 0.35, 1.8).translate(0, 0.175, 0), lathe([[0.7, 0], [0.62, 0.2], [0.48, 0.5], [0.5, 1.2], [0.62, 1.35], [0.75, 1.5], [0, 1.5]], 24).translate(0, 0.35, 0)]); ped.translate(fx, 0, fz); B.add(M.marbleTrim, ped);
-    const basin = lathe([[0, 0], [1.6, 0], [1.7, 0.1], [1.75, 0.4], [1.62, 0.42], [1.55, 0.2], [0, 0.2]], 32); basin.translate(fx, 1.85, fz); B.add(M.marble, basin);
-    B.col(fx - 0.9, fx + 0.9, 0, 2.3, fz - 0.9, fz + 0.9);
-    propAt('horse_statue_01', fx, 2.05, fz, Math.PI / 2 + 0.3, 2.6, { mat: 'bronzeOld' }); }
+  { // a flume boat stranded in the dry splash pool, nose down, and the run-out of the flume trough above it
+    const hull = new THREE.Shape(); hull.moveTo(-1.9, 0); hull.quadraticCurveTo(-1.9, 0.75, -0.9, 0.75); hull.lineTo(1.4, 0.75); hull.quadraticCurveTo(2.2, 0.75, 2.3, 0); hull.quadraticCurveTo(2.2, -0.75, 1.4, -0.75); hull.lineTo(-0.9, -0.75); hull.quadraticCurveTo(-1.9, -0.75, -1.9, 0);
+    const inner = new THREE.Path(); inner.moveTo(-1.6, 0); inner.quadraticCurveTo(-1.6, 0.55, -0.8, 0.55); inner.lineTo(1.3, 0.55); inner.quadraticCurveTo(1.95, 0.55, 2.0, 0); inner.quadraticCurveTo(1.95, -0.55, 1.3, -0.55); inner.lineTo(-0.8, -0.55); inner.quadraticCurveTo(-1.6, -0.55, -1.6, 0); hull.holes.push(inner);
+    const m = new THREE.Matrix4().makeTranslation(fx, 0.2, fz).multiply(new THREE.Matrix4().makeRotationY(0.5)).multiply(new THREE.Matrix4().makeRotationZ(-0.12)).multiply(new THREE.Matrix4().makeRotationX(0.1));
+    const shell = new THREE.ExtrudeGeometry(hull, { depth: 0.85, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2, curveSegments: 10 }); shell.rotateX(-Math.PI / 2); shell.applyMatrix4(m); B.add(M.woodYellow, shell);
+    const floor = new THREE.ShapeGeometry(inner.getPoints ? new THREE.Shape(inner.getPoints()) : hull, 10); floor.rotateX(-Math.PI / 2); floor.translate(0, 0.12, 0); floor.applyMatrix4(m); B.add(M.dark, floor);
+    const band = new THREE.ExtrudeGeometry(hull, { depth: 0.14, bevelEnabled: false, curveSegments: 10 }); band.scale(1.01, 1.01, 1); band.rotateX(-Math.PI / 2); band.translate(0, 0.62, 0); band.applyMatrix4(m); B.add(M.woodRed, band);
+    for (const bx of [-0.5, 0.6]) { const seat = new THREE.BoxGeometry(0.12, 0.5, 1.1); seat.translate(bx, 0.45, 0); seat.applyMatrix4(m); B.add(M.woodRed, seat); }
+    B.col(fx - 1.7, fx + 1.7, 0, 1.1, fz - 1.3, fz + 1.3);
+    // trough: a timber U-channel on steel trestles rising north out of the pool, its end broken off in the air
+    const tx = -29.2, legs = [];
+    for (let k = 0; k < 6; k++) { const z0 = -4.6 - k * 2.6, z1 = z0 - 2.6, y0 = 0.45 + k * 0.95, y1 = y0 + 0.95, len = Math.hypot(2.6, 0.95), ang = Math.atan2(0.95, 2.6);
+      if (k === 5) continue;
+      const ch = []; for (const [w, h, ox, oy] of [[1.5, 0.1, 0, 0], [0.1, 0.6, -0.72, 0.3], [0.1, 0.6, 0.72, 0.3]]) { const g = new THREE.BoxGeometry(w, h, len); g.translate(ox, oy, -len / 2); g.rotateX(ang); g.translate(tx, y0, z0); ch.push(g); }
+      B.add(k % 2 ? M.woodTeal : M.woodCream, merge(ch));
+      if (k >= 1) for (const sx of [-0.8, 0.8]) { const l = new THREE.BoxGeometry(0.16, y0, 0.16); l.translate(tx + sx, y0 / 2, z0); legs.push(l); B.col(tx + sx - 0.12, tx + sx + 0.12, 0, y0, z0 - 0.12, z0 + 0.12); }
+    }
+    { const g = new THREE.BoxGeometry(1.5, 0.1, 1.4); g.rotateX(0.7); g.rotateZ(0.2); g.translate(tx + 0.2, 4.3, -18.0); B.add(M.woodTeal, g); }
+    B.add(M.ironGreen, merge(legs));
+    B.col(tx - 0.8, tx + 0.8, 0, 2.3, -9.0, -4.4); // the low run-out you cannot walk under
+  }
   for (let i = 0; i < 16; i++) { const x = px0 + 0.8 + rr() * (px1 - px0 - 1.6), z = pz0 + 0.8 + rr() * (pz1 - pz0 - 1.6); if (Math.hypot(x - fx, z - fz) < 1.3) continue; propAt(['nettle_plant#nettle_plant_medium_b_LOD0', 'weed_plant_02#weed_plant_02_d_LOD0', 'fern_02#fern_02_a', 'nettle_plant#nettle_plant_small_b_LOD0'][i % 4], x, 0, z, rr() * 6, 0.4 + rr() * 0.6); }
-  for (const [x, z, r] of [[px0 + 0.25, fz, Math.PI / 2], [px1 - 0.25, fz, -Math.PI / 2]]) propAt('lion_head', x, 0.1, z, r, 0.32);
 
   // ---------- hedges gone wild along the parterres ----------
   const hedge = (x0, x1, z0, z1) => {

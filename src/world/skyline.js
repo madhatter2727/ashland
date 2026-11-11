@@ -21,6 +21,7 @@ function coasterPath() {
   return new THREE.CatmullRomCurve3(pts, true, 'centripetal', 0.5);
 }
 
+const V2 = (x, y, z) => new THREE.Vector3(x, y, z);
 export function buildSkyline(scene, M) {
   const group = new THREE.Group(); scene.add(group);
   const curve = coasterPath(), L = curve.getLength(), N = Math.round(L / 0.9);
@@ -118,12 +119,41 @@ export function buildSkyline(scene, M) {
     { const car = new THREE.CylinderGeometry(1.25, 1.05, 1.5, 8, 1); car.rotateX(1.3); car.rotateY(0.6); car.translate(cx + 7, 1.0, cz + 15); cars.push(car); const roof = new THREE.ConeGeometry(1.45, 0.8, 8); roof.rotateZ(2.2); roof.translate(cx + 9.5, 0.7, cz + 13); roofs.push(roof); }
     tris += add(frame, bentMat); tris += add(rods, M.steel); tris += add(cars, coasterRed); tris += add(roofs, M.gold); }
 
+  // THE PLUMMET, north beyond the Palace: a 58 m lattice drop tower, its ring of seats stuck two-thirds up
+  { const cx = -24, cz = -66, H = 58, s0 = 1.6, legs = [], brace = [], ring = [], seats = [], crown = [];
+    const bar = (a, b, r, arr) => { const d = new THREE.Vector3().subVectors(b, a), g = new THREE.CylinderGeometry(r, r, d.length(), 6, 1, true); g.translate(0, d.length() / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize())); g.translate(a.x, a.y, a.z); arr.push(g); };
+    const V = (x, y, z) => new THREE.Vector3(x, y, z), C = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    for (const [sx, sz] of C) bar(V(cx + sx * s0 * 1.6, 0, cz + sz * s0 * 1.6), V(cx + sx * s0, H, cz + sz * s0), 0.16, legs);
+    for (let y = 0; y < H - 2; y += 3) { const t0 = y / H, t1 = (y + 3) / H, w0 = s0 * (1.6 - 0.6 * t0), w1 = s0 * (1.6 - 0.6 * t1);
+      for (let k = 0; k < 4; k++) { const [ax, az] = C[k], [bx, bz] = C[(k + 1) % 4]; bar(V(cx + ax * w0, y, cz + az * w0), V(cx + bx * w1, y + 3, cz + bz * w1), 0.05, brace); bar(V(cx + ax * w1, y + 3, cz + az * w1), V(cx + bx * w1, y + 3, cz + bz * w1), 0.05, brace); } }
+    const ry = H * 0.62, rr0 = 3.4;
+    { const t = new THREE.TorusGeometry(rr0, 0.35, 8, 40); t.rotateX(Math.PI / 2); t.translate(cx, ry, cz); ring.push(t); const t2 = new THREE.TorusGeometry(rr0, 0.2, 6, 40); t2.rotateX(Math.PI / 2); t2.translate(cx, ry + 1.6, cz); ring.push(t2); }
+    for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2, x = cx + Math.cos(a) * (rr0 + 0.35), z = cz + Math.sin(a) * (rr0 + 0.35); const sb = new THREE.BoxGeometry(0.6, 1.3, 0.55); sb.rotateY(-a); sb.translate(x, ry + 0.4, z); seats.push(sb); const hb = new THREE.TorusGeometry(0.28, 0.05, 6, 12, Math.PI); hb.rotateY(-a + Math.PI / 2); hb.translate(x + Math.cos(a) * 0.3, ry + 0.9, z + Math.sin(a) * 0.3); ring.push(hb); }
+    const cr = lathe([[2.6, 0], [2.8, 0.4], [2.2, 1.6], [2.4, 2.0], [0.4, 3.6], [0.1, 6], [0, 6]], 16); cr.translate(cx, H, cz); crown.push(cr);
+    tris += add(legs, coasterRed); tris += add(brace, bentMat); tris += add(ring, M.steel); tris += add(seats, coasterRed); tris += add(crown, M.gold); }
+  // SKY SWINGS, west beyond the Gardens: a wave swinger, its painted canopy tilted and jammed, chains slack
+  { const cx = -54, cz = 26, mastH = 14, R = 8.2, mast = [], canopy = [], chains = [], seats = [], trim = [];
+    const m0 = lathe([[1.6, 0], [1.4, 0.6], [0.8, 1.2], [0.7, mastH], [0, mastH]], 16); m0.translate(cx, 0, cz); mast.push(m0);
+    const dk = new THREE.CylinderGeometry(7.4, 7.6, 0.6, 32); dk.translate(cx, 0.3, cz); mast.push(dk);
+    const tilt = new THREE.Matrix4().makeTranslation(cx, mastH, cz).multiply(new THREE.Matrix4().makeRotationX(0.16)).multiply(new THREE.Matrix4().makeRotationZ(-0.1));
+    const cp = lathe([[R + 0.4, 0], [R + 0.4, 0.9], [R, 1.1], [R * 0.6, 2.4], [1.0, 3.6], [0.3, 4.4], [0, 4.6]], 32); cp.applyMatrix4(tilt); canopy.push(cp);
+    const vr = new THREE.CylinderGeometry(R + 0.45, R + 0.45, 0.9, 32, 1, true); vr.translate(0, 0.45, 0); vr.applyMatrix4(tilt); trim.push(vr);
+    const fl = lathe([[0.25, 0], [0.32, 0.3], [0.06, 1.2], [0, 1.3]], 10); fl.translate(0, 4.5, 0); fl.applyMatrix4(tilt); trim.push(fl);
+    const N = 24;
+    for (let k = 0; k < N; k++) { if (k % 7 === 3) continue; const a = (k / N) * Math.PI * 2, top = new THREE.Vector3(Math.cos(a) * (R - 0.4), 0, Math.sin(a) * (R - 0.4)).applyMatrix4(tilt);
+      const L = top.y - 2.1, seat = V2(top.x + Math.cos(a) * 0.3, 2.1, top.z + Math.sin(a) * 0.3);
+      for (const off of [-0.22, 0.22]) { const g = new THREE.CylinderGeometry(0.02, 0.02, L, 4, 1, true); g.translate(0, L / 2, 0); g.translate(top.x + Math.sin(a) * off, 2.1, top.z - Math.cos(a) * off); chains.push(g); }
+      const sb = new THREE.BoxGeometry(0.55, 0.08, 0.5); sb.rotateY(-a); sb.translate(seat.x, 2.05, seat.z); seats.push(sb); const bk = new THREE.BoxGeometry(0.5, 0.55, 0.06); bk.translate(0, 0.27, -0.24); bk.rotateY(-a + Math.PI / 2); bk.translate(seat.x, 2.05, seat.z); seats.push(bk); }
+    { const sb = new THREE.BoxGeometry(0.55, 0.08, 0.5); sb.rotateZ(1.2); sb.translate(cx + 6.5, 0.3, cz + 5); seats.push(sb); }
+    tris += add(mast, M.copper); tris += add(canopy, M.woodYellow); tris += add(trim, M.woodRed); tris += add(chains, M.steel); tris += add(seats, M.coasterRed); }
+
   // a dead wood all round, far towers of the park in the haze
   const rnd = mulberry(4242), trees = [];
   for (let i = 0; i < 46; i++) {
     const a = rnd() * Math.PI * 2, d = 58 + rnd() * 50, x = Math.cos(a) * d, z = Math.sin(a) * d;
     if (x > 50 && z < 60 && z > -75) continue; // keep the coaster clear
     if (Math.hypot(x + 64, z + 14) < 18) continue; // and the wheel
+    if (Math.hypot(x + 24, z + 66) < 9 || Math.hypot(x + 54, z - 26) < 13) continue; // and the drop tower, the swings
     const t = deadTree(mulberry(i * 37 + 5), { h: 10 + rnd() * 9, r: 0.35 + rnd() * 0.2, depth: d > 85 ? 2 : 3 }); t.translate(x, 0, z); trees.push(t);
   }
   tris += add(trees, M.bark);

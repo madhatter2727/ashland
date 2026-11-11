@@ -103,7 +103,7 @@ export function stall(ctx, x, z, rot, i, y0 = 0, counter = 1) {
   const w = rot ? W : L, d = rot ? L : W;
   B.colliders.push({ minX: x - w / 2, maxX: x + w / 2, minY: y0, maxY: y0 + Hs, minZ: z - d / 2, maxZ: z + d / 2, walk: false, mat: 'wood', top: y0 + Hs });
   const F = new Frame(B, x, z, rot ? Math.PI / 2 : 0, y0);
-  const body = i % 2 ? M.woodGreen : M.woodRed, trim = M.woodCream, hw = W / 2;
+  const body = [M.woodRed, M.woodTeal, M.woodYellow][i % 3], trim = body === M.woodYellow ? M.woodRed : M.woodCream, hw = W / 2;
   F.box(M.stoneDark, -L / 2, L / 2, 0, 0.22, -hw, hw);
   F.box(M.deck, -L / 2, L / 2, Hs - 0.16, Hs, -hw, hw); // flat roof deck
   F.box(trim, -L / 2 - 0.05, L / 2 + 0.05, Hs - 0.32, Hs - 0.14, -hw - 0.05, hw + 0.05);
@@ -116,7 +116,7 @@ export function stall(ctx, x, z, rot, i, y0 = 0, counter = 1) {
       S.box(body, -L / 2 + 0.12, L / 2 - 0.12, 0.22, 1.02, -0.12, 0);
       for (let k = -2; k <= 2; k++) { const fr = moldingRing([[0, 0], [0.025, 0], [0.03, 0.02], [0, 0.035]], 0.95, 0.55, 0); fr.rotateX(Math.PI / 2); fr.translate(k * 1.12, 0.62, 0.01); S.geo(M.gold, fr); }
       S.box(trim, -L / 2 + 0.05, L / 2 - 0.05, 1.02, 1.1, -0.2, 0.22);
-      S.box(M.interior, -L / 2 + 0.12, L / 2 - 0.12, 1.1, Hs - 0.32, -W + 0.12, -W + 0.18);
+      S.box(M.boothGlow, -L / 2 + 0.12, L / 2 - 0.12, 1.1, Hs - 0.32, -W + 0.12, -W + 0.18);
       for (const yy of [1.45, 1.85]) S.box(trim, -L / 2 + 0.15, L / 2 - 0.15, yy, yy + 0.04, -W + 0.18, -W + 0.5);
       const glass = [], tin = [];
       for (const yy of [1.49, 1.89]) for (let k = 0; k < 16; k++) { if (rr() < 0.25) continue; const xx = -L / 2 + 0.4 + k * 0.33; if (rr() < 0.5) { const b = lathe([[0.04, 0], [0.045, 0.02], [0.045, 0.16], [0.02, 0.22], [0.015, 0.3], [0, 0.3]], 8); b.translate(xx, yy, -W + 0.32); glass.push(b); } else { const c = new THREE.CylinderGeometry(0.05, 0.05, 0.13, 10); c.translate(xx, yy + 0.065, -W + 0.32); tin.push(c); } }
@@ -129,11 +129,13 @@ export function stall(ctx, x, z, rot, i, y0 = 0, counter = 1) {
       for (const sx of [-1, 0, 1]) { const br = new THREE.BoxGeometry(0.06, 0.06, 1.0); br.rotateX(-0.75); br.translate(sx * (L / 2 - 0.1), Hs - 0.75, 0.45); S.geo(M.iron, br); }
       bulbRow(ctx, S, -L / 2, Hs - 0.62, 1.04, L / 2, Hs - 0.62, 1.04, 0.38, 0.22, i * 9 + 3);
       if (!stacked) { // arched crest board with the game's name
-        const crest = new THREE.Shape(); crest.moveTo(-L / 2 + 0.3, 0); crest.lineTo(L / 2 - 0.3, 0); crest.lineTo(L / 2 - 0.3, 0.35); crest.quadraticCurveTo(0, 1.05, -L / 2 + 0.3, 0.35); crest.closePath();
+        const crest = new THREE.Shape(); crest.moveTo(-L / 2 + 0.3, 0); crest.lineTo(L / 2 - 0.3, 0); crest.lineTo(L / 2 - 0.3, 0.22); crest.bezierCurveTo(L / 2 - 0.9, 0.2, L / 4, 1.0, 0.45, 1.2); crest.quadraticCurveTo(0, 1.75, -0.45, 1.2); crest.bezierCurveTo(-L / 4, 1.0, -L / 2 + 0.9, 0.2, -L / 2 + 0.3, 0.22); crest.closePath();
+        for (const sx of [-1, 1]) { const sc = new THREE.TorusGeometry(0.2, 0.05, 6, 16, Math.PI * 1.6); sc.rotateZ(sx < 0 ? 0 : Math.PI); sc.translate(sx * (L / 2 - 0.42), Hs + 0.3, -0.02); S.geo(M.gold, sc); }
+        { const st = lathe([[0.1, 0], [0.12, 0.08], [0.03, 0.35], [0, 0.35]], 8); st.translate(0, Hs - 0.05 + 1.72, -0.08); S.geo(M.gold, st); }
         const cg = new THREE.ExtrudeGeometry(crest, { depth: 0.08, bevelEnabled: false }); cg.translate(0, Hs - 0.05, -0.12); S.geo(body, cg);
         const sign = signMesh(['RING-A-PEG', 'COCONUT SHY', 'HOOK-A-DUCK', 'TEST YOUR STRENGTH', 'ROLL-A-PENNY', 'LUCKY DIP', 'HOOPLA', 'THE TIP-TOP'][i % 8], L - 1.6, 0.42, { bg: i % 2 ? '#14281d' : '#3d1210', h: 200 });
         scene.add(place(S, sign, 0, Hs + 0.3, -0.02));
-        for (let k = 0; k <= 10; k++) { const t = k / 10, xx = -L / 2 + 0.3 + t * (L - 0.6), yy = Hs - 0.05 + 0.35 + (1 - (2 * t - 1) ** 2) * 0.35; ctx.bulbs.push({ p: S.point(xx, yy, 0.0), lit: rr() < 0.1 }); }
+        for (let k = 0; k <= 10; k++) { const t = k / 10, xx = -L / 2 + 0.3 + t * (L - 0.6), yy = Hs - 0.05 + 0.24 + Math.pow(1 - Math.abs(2 * t - 1), 1.6) * 1.35; ctx.bulbs.push({ p: S.point(xx, yy, 0.0), lit: rr() < 0.1 }); }
       }
     } else {
       S.box(body, -L / 2 + 0.12, L / 2 - 0.12, 0.22, Hs - 0.32, -0.1, 0);

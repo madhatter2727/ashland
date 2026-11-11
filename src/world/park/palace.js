@@ -7,6 +7,7 @@ import { Frame, P, molding, moldingRing, column, mansard, dome, lathe, merge, ar
 import { storey, parapet } from './facade.js';
 import { giltText, clockDial, paintedSign } from './signs.js';
 import { poster, posterCase, bulbRow, ticketKiosk } from './showfront.js';
+import { turret, battlement, corbels, cogArc } from './themed.js';
 
 function invert(g) { g = g.index ? g.toNonIndexed() : g; const p = g.attributes.position; for (let i = 0; i < p.count; i += 3) { const x = p.getX(i + 1), y = p.getY(i + 1), z = p.getZ(i + 1); p.setXYZ(i + 1, p.getX(i + 2), p.getY(i + 2), p.getZ(i + 2)); p.setXYZ(i + 2, x, y, z); } g.computeVertexNormals(); return g; }
 
@@ -24,23 +25,28 @@ export function buildPalace(ctx) {
     const g = storey(F, M, rr, xa, xb, { y0: 0, y1: 6.6, bay: 4, mat: M.brickDeep, win: { w: 2.5, sill: 0.4, spring: 4.0 }, surround: M.woodCream, fills: ['plywood', 'boards', 'plywood', 'dark', 'plywood'], frame: M.woodGreen, course: { mat: M.woodCream, profile: P.string(1.4) } });
     for (let i = 1; i < g.n; i++) if ((i + (side > 0 ? 1 : 0)) % 2) posterCase(F, M, scene, xa + g.bw * i, 3.0, 0.02, (i + side + 3) % 6, i * 5 + side, 1.02);
     bulbRow(ctx, F, xa + 0.3, 6.45, 0.32, xb - 0.3, 6.45, 0.32, 0.4, 0.04, 31 + side);
-    // the mural storey: peeling painted render with two giant faded bills framed in painted timber
-    F.box(M.muralWall, xa, xb, 6.6, 15.6, -0.5, 0.02);
-    const mw = 5.0, mh = mw * 1.5;
-    for (const fx of [0.3, 0.7]) {
-      const mx = xa + (xb - xa) * fx, my = 11.0;
-      F.box(M.woodCream, mx - mw / 2 - 0.35, mx + mw / 2 + 0.35, my - mh / 2 - 0.35, my + mh / 2 + 0.35, 0.02, 0.1);
-      const mur = poster(M, fx < 0.5 ? (side < 0 ? 0 : 2) : (side < 0 ? 5 : 1), 40 + side + fx * 10, mw); mur.position.copy(F.point(mx, my, 0.12)); mur.rotation.y = F.rotY; scene.add(mur);
+    // the attraction-castle curtain wall: chalky faux stone, corbelled and crenellated at uneven heights,
+    // two great torn show banners, painted attraction board, and turrets that break the line of the roof
+    const wy = side < 0 ? 14.2 : 15.4; // the two wings are not a matched pair
+    F.box(M.fauxStone, xa, xb, 6.6, wy, -0.5, 0.02);
+    for (let x = xa + 2.0; x < xb - 1; x += 3.1) { const s0 = new THREE.BoxGeometry(0.24, 1.3, 0.3); s0.translate(x, 9.4 + ((x * 7) % 3) * 0.6, 0.0); F.geo(M.dark, s0); }
+    F.box(M.fauxStone, xa, xb, wy, wy + 1.1, 0.0, 0.6);
+    corbels(F, M.fauxStone, xa, xb, wy, 0.02);
+    battlement(F, M.fauxStone, xa, xb, wy + 1.1, 0.15, 0.6, { seed: 5 + side });
+    const mw = 4.4, mh = mw * 1.5;
+    for (const fx of side < 0 ? [0.22, 0.62] : [0.4, 0.82]) {
+      const mx = xa + (xb - xa) * fx, my = wy - 4.0;
+      F.box(M.iron, mx - mw / 2 - 0.3, mx + mw / 2 + 0.3, my + mh / 2 + 0.05, my + mh / 2 + 0.2, 0.0, 0.35);
+      const mur = poster(M, fx < 0.5 ? (side < 0 ? 0 : 2) : (side < 0 ? 5 : 1), 40 + side + fx * 10, mw); mur.position.copy(F.point(mx, my, 0.3)); mur.rotation.y = F.rotY; mur.rotation.z = (fx - 0.5) * 0.04; scene.add(mur);
     }
-    for (let x = xa + 0.3; x <= xb - 0.2; x += (xb - xa - 0.6) / 6) F.box(M.woodGreen, x - 0.22, x + 0.22, 6.6, 15.6, 0.02, 0.2);
-    F.geo(M.woodCream, molding(P.cornice(1.2), xa, xb, 15.4, 0));
-    bulbRow(ctx, F, xa + 0.3, 15.35, 0.5, xb - 0.3, 15.35, 0.5, 0.42, 0.05, 41 + side);
-    // stepped false front with the attraction boards
-    const steps = [[xa, xb, 15.95, 17.4], [cx - 11, cx + 11, 17.4, 19.6], [cx - 6.5, cx + 6.5, 19.6, 21.4]];
-    for (const [x0, x1, y0, y1] of steps) { F.box(M.woodRed, x0, x1, y0, y1, -0.5, 0); F.geo(M.woodCream, molding(P.cornice(0.6), x0, x1, y1 - 0.25, 0)); }
-    const bd = boards[side < 0 ? 0 : 1];
-    const sp = new THREE.Mesh(new THREE.PlaneGeometry(20.4, 1.9), new THREE.MeshStandardMaterial({ map: paintedSign(bd[0], { bg: '#22362a', fg: '#d8b35a', sub: bd[1], w: 2048, h: 192 }), roughness: 0.8 }));
-    sp.position.copy(F.point(cx, 18.5, 0.04)); sp.rotation.y = F.rotY; scene.add(sp);
+    bulbRow(ctx, F, xa + 0.3, wy - 0.2, 0.62, xb - 0.3, wy - 0.2, 0.62, 0.42, 0.05, 41 + side);
+    const bd = boards[side < 0 ? 0 : 1], bx = xa + (xb - xa) * (side < 0 ? 0.42 : 0.61);
+    const sp = new THREE.Mesh(new THREE.PlaneGeometry(9.6, 1.25), new THREE.MeshStandardMaterial({ map: paintedSign(bd[0], { bg: '#5a1a14', fg: '#e2b84a', sub: bd[1], w: 2048, h: 256 }), roughness: 0.8 }));
+    sp.position.copy(F.point(bx, 7.6, 0.06)); sp.rotation.y = F.rotY; scene.add(sp);
+    F.box(M.woodYellow, bx - 5.0, bx + 5.0, 6.85, 8.35, -0.1, 0.03);
+    // turrets: different heights, roofs and states on each wing
+    const tw = side < 0 ? [[-38.5, 21, 2.3, M.shingleRed, false, 0.0], [-14, 18.5, 1.9, M.copper, true, 0.03]] : [[14.5, 25, 2.5, M.copper, false, 0.0], [37.5, 19.5, 2.1, M.shingleRed, false, -0.05]];
+    for (const [tx, th, tr, rm, br, ln] of tw) { const tz = tr * 0.35; turret(F, M, tx, tz, { r: tr, h: th, roofH: tr * 3.6, roof: rm, broken: br, lean: ln, seed: Math.round(tx * 3) }); F.col(tx - tr * 1.15, tx + tr * 1.15, 0, th, -1, tz + tr * 1.15, { surface: 'concrete' }); }
     F.box(M.slate, xa, xb, 15.6, 16.4, -8, -0.5); // roof deck behind the false front
     if (side < 0) { // rooftop billboard on its iron frame
       F.geo(M.iron, ironRailing(10, 4.2, 0.5).translate(cx - 9, 16.4, -4.5));
@@ -63,8 +69,8 @@ export function buildPalace(ctx) {
   const front1 = new THREE.Shape(); front1.moveTo(-tw, 0); front1.lineTo(-3.5, 0); front1.lineTo(-3.5, 5.2);
   for (let i = 0; i <= 24; i++) { const a = Math.PI - (i / 24) * Math.PI; front1.lineTo(Math.cos(a) * 3.5, 5.2 + Math.sin(a) * 3.5); }
   front1.lineTo(3.5, 0); front1.lineTo(tw, 0); front1.lineTo(tw, 14); front1.lineTo(-tw, 14); front1.closePath();
-  for (const z of [tz0, tz1 + 0.8]) { const g = new THREE.ExtrudeGeometry(front1, { depth: 0.8, bevelEnabled: false, curveSegments: 24 }); g.translate(0, 0, z - 0.8); F.geo(M.stoneDark, g); }
-  for (const sx of [-1, 1]) { F.box(M.stoneDark, sx > 0 ? 3.5 : -tw, sx > 0 ? tw : -3.5, 0, 14, tz1 + 0.8, tz0 - 0.8); F.box(M.stoneDark, sx > 0 ? tw - 0.8 : -tw, sx > 0 ? tw : -tw + 0.8, 0, 14, tz1, tz0); }
+  for (const z of [tz0, tz1 + 0.8]) { const g = new THREE.ExtrudeGeometry(front1, { depth: 0.8, bevelEnabled: false, curveSegments: 24 }); g.translate(0, 0, z - 0.8); F.geo(M.fauxStone, g); }
+  for (const sx of [-1, 1]) { F.box(M.fauxStone, sx > 0 ? 3.5 : -tw, sx > 0 ? tw : -3.5, 0, 14, tz1 + 0.8, tz0 - 0.8); F.box(M.fauxStone, sx > 0 ? tw - 0.8 : -tw, sx > 0 ? tw : -tw + 0.8, 0, 14, tz1, tz0); }
   F.box(M.stoneDark, -3.5, 3.5, 8.7, 14, tz1 + 0.8, tz0 - 0.8);
   // barrel vault soffit of the passage, coffered by ribs
   const vault = new THREE.CylinderGeometry(3.5, 3.5, tz0 - tz1, 28, 1, true, -Math.PI / 2, Math.PI); vault.rotateX(-Math.PI / 2); vault.translate(0, 5.2, (tz0 + tz1) / 2);
@@ -75,42 +81,23 @@ export function buildPalace(ctx) {
   F.geo(M.stone, molding(P.cornice(0.9), -tw - 0.3, tw + 0.3, 13.4, tz0));
   // gilt inscription on the frieze
   const ins = giltText(M.gold, 'THE PALACE OF HOURS', 9.6, 0.9, { size: 170, spacing: 0.22 }); ins.position.copy(F.point(0, 10.9, tz0 + 0.03)); ins.rotation.y = F.rotY; scene.add(ins);
-  // stage 2: clock stage with giant corner pilasters + clock dial
-  const t2y0 = 14.1, t2y1 = 25.2, sw = tw - 0.4;
-  F.box(M.stone, -sw, sw, t2y0, t2y1, tz1 + 0.4, tz0 - 0.4);
-  for (const sx of [-1, 1]) for (const fz of [tz0 - 0.4]) { const c = column(t2y1 - t2y0 - 0.2, 0.42, { capital: 'ionic' }); c.translate(sx * (sw - 0.55), t2y0, fz + 0.45); F.geo(M.marble, c); }
+  // stage 2: the clock keep, chalky faux stone, off-centre and lopsided; a single great dial
+  const t2y0 = 14.1, t2y1 = 23.4, sw = tw - 0.4, bcz = (tz0 + tz1) / 2;
+  F.box(M.fauxStone, -sw, sw, t2y0, t2y1, tz1 + 0.4, tz0 - 0.4);
+  F.box(M.fauxStone, -sw - 0.35, sw + 0.35, t2y1, t2y1 + 1.1, tz1 + 0.05, tz0 - 0.05);
+  corbels(F, M.fauxStone, -sw - 0.35, sw + 0.35, t2y1, tz0 - 0.4);
+  battlement(F, M.fauxStone, -sw - 0.35, sw + 0.35, t2y1 + 1.1, tz0 - 0.55, tz0 - 0.05, { seed: 17 });
   const dialMat = new THREE.MeshStandardMaterial({ map: clockDial(), roughness: 0.55, metalness: 0, envMapIntensity: 0.8 });
-  for (const [ox, oz, ry] of [[0, tz0 - 0.38, 0], [-sw - 0.02, (tz0 + tz1) / 2, -Math.PI / 2], [sw + 0.02, (tz0 + tz1) / 2, Math.PI / 2]]) {
-    const dial = new THREE.Mesh(new THREE.CircleGeometry(2.55, 64), dialMat);
-    dial.position.copy(F.point(ox + Math.sin(ry) * 0.06, 19.6, oz + Math.cos(ry) * 0.06)); dial.rotation.y = ry; scene.add(dial);
-    const bez = new THREE.TorusGeometry(2.65, 0.16, 10, 64); bez.rotateY(ry); bez.translate(ox + Math.sin(ry) * 0.05, 19.6, oz + Math.cos(ry) * 0.05); F.geo(M.gold, bez);
-    const wreath = new THREE.TorusGeometry(3.05, 0.3, 10, 64); wreath.scale(1, 1, 0.6); wreath.rotateY(ry); wreath.translate(ox, 19.6, oz); F.geo(M.marbleTrim, wreath);
-  }
-  F.geo(M.marbleTrim, moldingRing(P.cornice(1.1), sw * 2, tz0 - tz1 - 0.8, t2y1 - 0.1).translate(0, 0, (tz0 + tz1) / 2));
-  // stage 3: open belfry, three arches a side, a bell inside
-  const by0 = t2y1 + 0.55, by1 = by0 + 6.4, bw = sw - 0.6, bcz = (tz0 + tz1) / 2, bd = (tz0 - tz1) / 2 - 1.0;
-  for (const [rot, L, tx, tz] of [[0, bw, 0, bcz + bd], [Math.PI, bw, 0, bcz - bd], [Math.PI / 2, bd, bw, bcz], [-Math.PI / 2, bd, -bw, bcz]]) {
-    const sp = L * 0.62;
-    const wall = wallWithOpenings(-L, L, by0, by1, [-1, 0, 1].map((k) => ({ x0: k * sp - 0.95, x1: k * sp + 0.95, y0: by0 + 0.9, spring: by0 + 4.0 })), 0.6);
-    wall.rotateY(rot); wall.translate(tx, 0, tz); F.geo(M.stone, wall);
-    const ba = balustrade(L * 2 - 0.4, { h: 0.9, pitch: 0.26 }); ba.translate(0, by0, 0.25); ba.rotateY(rot); ba.translate(tx, 0, tz); F.geo(M.marbleTrim, ba);
-    for (const k of [-1.5, -0.5, 0.5, 1.5]) { const c = column(4.6, 0.2, { capital: 'ionic', flutes: 12, seg: 20 }); c.translate(k * sp, by0 + 0.9, 0.35); c.rotateY(rot); c.translate(tx, 0, tz); F.geo(M.marble, c); }
-  }
-  F.box(M.stone, -bw, bw, by1, by1 + 0.4, bcz - bd - 0.3, bcz + bd + 0.3);
-  F.geo(M.marbleTrim, moldingRing(P.cornice(0.9), bw * 2, bd * 2, by1 + 0.3).translate(0, 0, bcz));
-  const bell = lathe([[0, 2.2], [0.35, 2.15], [0.5, 1.9], [0.62, 1.2], [0.85, 0.45], [1.15, 0.12], [1.2, 0], [1.05, 0.02], [0, 0.4]], 32); bell.translate(0, by0 + 1.4, bcz); F.geo(M.brass, bell);
-  F.box(M.iron, -1.6, 1.6, by0 + 3.6, by0 + 3.85, bcz - 0.15, bcz + 0.15);
-  // dome on a drum, lantern, armillary finial
-  const D = dome(3.7, { drumH: 2.2, h: 4.3, ribs: 16, lanternR: 0.75 });
-  D.shell.translate(0, by1 + 1.1, bcz); D.stone.translate(0, by1 + 1.1, bcz);
-  F.geo(M.copper, D.shell); F.geo(M.marbleTrim, D.stone);
-  const ty = by1 + 1.1 + D.top - 0.4;
-  const arm = []; for (const [rx, rz] of [[0, 0], [Math.PI / 2, 0], [0.4, 1.1]]) { const r = new THREE.TorusGeometry(0.75, 0.045, 6, 32); r.rotateX(rx); r.rotateZ(rz); r.translate(0, ty + 1.3, bcz); arm.push(r); }
-  const mast = new THREE.CylinderGeometry(0.05, 0.08, 3.6, 8); mast.translate(0, ty + 1.2, bcz); arm.push(mast);
-  F.geo(M.gold, merge(arm));
-  // bronze lion keystone over the great arch, wall lanterns either side
+  { const dial = new THREE.Mesh(new THREE.CircleGeometry(2.55, 64), dialMat); dial.position.copy(F.point(0.6, 18.9, tz0 - 0.32)); dial.rotation.y = F.rotY; dial.rotation.z = 0.05; scene.add(dial);
+    cogArc(F, M.gold, 0.6, 18.9, tz0 - 0.3, 2.85, { teeth: 30, a0: 0, a1: Math.PI * 2 }); }
+  // a great cogwheel archivolt round the passage arch, half its teeth gone
+  cogArc(F, M.brass, 0, 5.2, tz0 + 0.2, 4.35, { teeth: 22, a0: 0.12, a1: Math.PI - 0.05 });
+  // the keep's turrets: a tall main turret set off-centre, a corbelled bartizan, a broken stump
+  turret(F, M, -1.6, bcz + 0.6, { y0: t2y1 + 1.1, r: 3.0, h: 8.5, roofH: 11.5, roof: M.shingleRed, lean: 0.035, seed: 91 });
+  turret(F, M, 5.2, tz0 - 1.6, { y0: t2y0 + 3.5, r: 1.25, h: 9.5, roofH: 4.6, roof: M.copper, seed: 92 });
+  turret(F, M, -5.0, tz1 + 1.8, { y0: t2y1 + 1.1, r: 1.5, h: 3.2, roofH: 4, roof: M.copper, broken: true, seed: 93 });
   propAt('lion_head', 0, 8.35, -36 + tz0 + 0.05, 0, 1.25);
-  ctx.towerTop = F.point(0, ty + 3, bcz);
+  ctx.towerTop = F.point(-1.6, t2y1 + 22, bcz + 0.6);
 
   // the iron gates, thrown open against the passage walls
   for (const sx of [-1, 1]) propAt('large_iron_gate#' + (sx < 0 ? 'large_iron_gate_left_door' : 'large_iron_gate_right_door'), sx * 3.3, 0, -36 + tz1 + 3.6 + 1.6, sx * Math.PI / 2 * 0.94, 1.2);
