@@ -68,7 +68,7 @@ export class Minimap {
     }
     return c;
   }
-  draw(dt, player, horde, barrels, throwables) {
+  draw(dt, player, horde, throwables) {
     this.t += dt; this.acc += dt;
     if (this.acc < 1 / 30) return; this.acc = 0;
     const g = this.ctx, S = this.size, R = S / 2 - 6, dpr = this.dpr, k = R / RANGE;
@@ -113,13 +113,6 @@ export class Minimap {
         g.beginPath(); g.moveTo(-6, -3); g.lineTo(6, -3); g.lineTo(3, 0); g.lineTo(3, 2); g.lineTo(5, 5); g.lineTo(-5, 5); g.lineTo(-3, 2); g.lineTo(-3, 0); g.closePath(); g.fill(); g.stroke();
       }
       g.restore();
-    }
-    // barrels
-    for (const b of barrels.list) {
-      if (!b.alive) continue;
-      const [x, y] = toR(b.pos.x, b.pos.z);
-      g.fillStyle = '#ff7a2a'; g.beginPath(); g.arc(x, y, 2.6, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = 'rgba(255,210,150,.7)'; g.stroke();
     }
     // throwables: frags blink, Screamers pulse a lure ring
     for (const o of throwables.list) {

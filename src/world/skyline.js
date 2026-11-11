@@ -94,11 +94,36 @@ export function buildSkyline(scene, M) {
     const r = new THREE.CylinderGeometry(5.5, 5.5, 18, 20, 1, false, -Math.PI / 2, Math.PI); r.rotateX(Math.PI / 2); r.scale(1, 0.45, 1); r.translate(60, 5.5, 46); roof.push(r);
     tris += add(parts, bentMat); tris += add(roof, M.copper); }
 
+  // THE GRAND WHEEL beyond the west wall: a 44 m riveted wheel, stopped; cars missing, one lying in the weeds
+  { const cx = -64, cy = 24, cz = -14, R = 20, rods = [], frame = [], cars = [], roofs = [], rnd = mulberry(77);
+    const bar = (a, b, r, arr) => { const d = new THREE.Vector3().subVectors(b, a), g = new THREE.CylinderGeometry(r, r, d.length(), 6, 1, true); g.translate(0, d.length() / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize())); g.translate(a.x, a.y, a.z); arr.push(g); };
+    const V = (x, y, z) => new THREE.Vector3(x, y, z), N = 32;
+    for (const sx of [-1.3, 1.3]) {
+      for (const rr0 of [R, R * 0.88]) { const t = new THREE.TorusGeometry(rr0, rr0 === R ? 0.24 : 0.16, 6, 128); t.rotateY(Math.PI / 2); t.translate(cx + sx, cy, cz); frame.push(t); }
+      for (let k = 0; k < N; k++) { const a0 = (k / N) * Math.PI * 2, a1 = ((k + 1) / N) * Math.PI * 2; const P0 = V(cx + sx, cy + Math.sin(a0) * R, cz + Math.cos(a0) * R);
+        bar(V(cx + sx * 0.6, cy + Math.sin(a0) * 1.6, cz + Math.cos(a0) * 1.6), P0, 0.06, rods);
+        bar(V(cx + sx, cy + Math.sin(a0) * R * 0.88, cz + Math.cos(a0) * R * 0.88), V(cx + sx, cy + Math.sin(a1) * R, cz + Math.cos(a1) * R), 0.07, frame); }
+    }
+    for (let k = 0; k < N; k++) { const a0 = (k / N) * Math.PI * 2; bar(V(cx - 1.3, cy + Math.sin(a0) * R, cz + Math.cos(a0) * R), V(cx + 1.3, cy + Math.sin(a0) * R, cz + Math.cos(a0) * R), 0.09, frame); }
+    const hub = new THREE.CylinderGeometry(1.6, 1.6, 3.4, 20); hub.rotateZ(Math.PI / 2); hub.translate(cx, cy, cz); frame.push(hub);
+    const ax = new THREE.CylinderGeometry(0.45, 0.45, 7.4, 12); ax.rotateZ(Math.PI / 2); ax.translate(cx, cy, cz); frame.push(ax);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const foot = V(cx + sx * 6, 0, cz + sz * 12), top = V(cx + sx * 3.4, cy, cz); bar(foot, top, 0.42, frame);
+      for (let t = 0.12; t < 0.9; t += 0.16) { const p0 = foot.clone().lerp(top, t), p1 = V(cx + sx * 6, 0, cz - sz * 12).lerp(V(cx + sx * 3.4, cy, cz), t + 0.08); if (sz > 0) bar(p0, p1, 0.1, frame); }
+      const pad = new THREE.BoxGeometry(2.4, 0.8, 2.4); pad.translate(foot.x, 0.4, foot.z); frame.push(pad); }
+    for (let k = 0; k < 16; k++) { if ([3, 9, 13].includes(k)) continue; const a0 = (k / 16) * Math.PI * 2 + 0.1, py = cy + Math.sin(a0) * R, pz = cz + Math.cos(a0) * R;
+      const swing = (rnd() - 0.5) * 0.25, cy0 = py - 2.1;
+      const car = new THREE.CylinderGeometry(1.25, 1.05, 1.5, 8, 1); car.rotateZ(swing); car.translate(cx, cy0, pz); cars.push(car);
+      const roof = new THREE.ConeGeometry(1.45, 0.8, 8); roof.translate(cx, cy0 + 1.15, pz); roofs.push(roof);
+      bar(V(cx - 1.3, py, pz), V(cx, cy0 + 1.5, pz), 0.05, rods); bar(V(cx + 1.3, py, pz), V(cx, cy0 + 1.5, pz), 0.05, rods); }
+    { const car = new THREE.CylinderGeometry(1.25, 1.05, 1.5, 8, 1); car.rotateX(1.3); car.rotateY(0.6); car.translate(cx + 7, 1.0, cz + 15); cars.push(car); const roof = new THREE.ConeGeometry(1.45, 0.8, 8); roof.rotateZ(2.2); roof.translate(cx + 9.5, 0.7, cz + 13); roofs.push(roof); }
+    tris += add(frame, bentMat); tris += add(rods, M.steel); tris += add(cars, coasterRed); tris += add(roofs, M.gold); }
+
   // a dead wood all round, far towers of the park in the haze
   const rnd = mulberry(4242), trees = [];
   for (let i = 0; i < 46; i++) {
     const a = rnd() * Math.PI * 2, d = 58 + rnd() * 50, x = Math.cos(a) * d, z = Math.sin(a) * d;
     if (x > 50 && z < 60 && z > -75) continue; // keep the coaster clear
+    if (Math.hypot(x + 64, z + 14) < 18) continue; // and the wheel
     const t = deadTree(mulberry(i * 37 + 5), { h: 10 + rnd() * 9, r: 0.35 + rnd() * 0.2, depth: d > 85 ? 2 : 3 }); t.translate(x, 0, z); trees.push(t);
   }
   tris += add(trees, M.bark);

@@ -76,6 +76,9 @@ function fill(F, M, rr, o, s, t) {
       F.geo(s.shutterMat || M.shutter, lg);
     }
     if (o.spring < o.y0 + 9 && !o.seg) { const fan = new THREE.ShapeGeometry((() => { const sh = new THREE.Shape(); sh.moveTo(o.x0, o.spring); for (let i = 0; i <= 12; i++) { const a = Math.PI - (i / 12) * Math.PI; sh.lineTo(o.cx + Math.cos(a) * w / 2, o.spring + Math.sin(a) * w / 2); } sh.closePath(); return sh; })()); fan.translate(0, 0, z); F.geo(M.dark, fan, 'keep'); }
+  } else if (kind === 'plywood') { // a sheet of weathered plywood nailed over the opening
+    const top = o.spring + (o.seg || (w / 2)) * 0.9, sh = new THREE.BoxGeometry(w + 0.3, top - o.y0 + 0.2, 0.03);
+    sh.rotateZ((rr() - 0.5) * 0.04); sh.translate(o.cx, (o.y0 + top) / 2, 0.035); F.geo(M.plywood, sh);
   } else if (kind === 'boards') {
     const top = o.spring + (o.seg || 0) * 0.5;
     for (let k = 0; k < 4; k++) {

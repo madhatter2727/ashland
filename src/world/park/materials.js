@@ -113,6 +113,7 @@ export function makeMaterials(A) {
     slate: P('roof_slates_02', { color: '#7d7b80', normalScale: 1.3 }, 1 / 2, { grime: 0.4, streaks: 0.4, wet: 0.9, moss: 0.3, height: -10 }),
     gold: P('metal_plate_02', { metal: true, color: '#c99a45', envMapIntensity: 1.4 }, 1 / 0.9, { grime: 0.5, streaks: 0.5, wet: 0.3, gild: 1, height: 1 }),
     brass: P('metal_plate_02', { metal: true, color: '#a37a42', envMapIntensity: 1.2 }, 1 / 1.2, { grime: 0.7, streaks: 0.6, wet: 0.3, height: 1 }),
+    bronzeOld: P('metal_plate_02', { metal: true, color: '#4a3a28', roughness: 0.75, envMapIntensity: 0.6 }, 1 / 0.8, { grime: 0.9, streaks: 0.9, wet: 0.4, height: 2 }),
     iron: tint(P('rusty_metal_02', { metal: true, envMapIntensity: 1 }, 1 / 1.5, { grime: 0.3, streaks: 0.3, wet: 0.5, height: 1 }), '#4a4540'),
     ironGreen: tint(P('rusty_metal_02', { metal: true, envMapIntensity: 1 }, 1 / 1.5, { grime: 0.3, streaks: 0.5, wet: 0.5, height: 1 }), '#3a4a3e'),
     steel: P('rusty_metal_02', { metal: true, envMapIntensity: 1.1 }, 1 / 2, { grime: 0.4, streaks: 0.6, wet: 0.4, height: 1 }),
@@ -123,6 +124,13 @@ export function makeMaterials(A) {
     redPaint: P('red_plaster_weathered', { color: '#8b3a32', normalScale: 1.1 }, 1 / 2, { grime: 0.8, streaks: 1, wet: 0.4, height: 3 }),
     greenPaint: tint(P('red_plaster_weathered', { normalScale: 1.1 }, 1 / 2, { grime: 0.8, streaks: 1, wet: 0.4, height: 3 }), '#3c5a45'),
     velvet: P('velour_velvet', { color: '#7a1f22', normalScale: 0.8 }, 1 / 1.2, { grime: 0.6, streaks: 0.8, wet: 0.5, height: 1 }),
+    // boardwalk timber: board-and-batten painted deep red / bottle green / aged cream, raw plywood, deck planks
+    woodRed: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.7, streaks: 0.9, wet: 0.45, moss: 0.15, height: 2 }), '#9b4034'),
+    woodGreen: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.7, streaks: 0.9, wet: 0.45, moss: 0.15, height: 2 }), '#4d6b55'),
+    woodCream: tint(P('distressed_painted_planks', { normalScale: 1.1 }, 1 / 2.2, { grime: 0.8, streaks: 1, wet: 0.4, height: 2 }), '#c4b493'),
+    plywood: tint(P('plywood', { normalScale: 0.8 }, 1 / 2.4, { grime: 0.6, streaks: 0.9, wet: 0.5, height: 1 }), '#9a8366'),
+    deck: P('old_planks_02', { color: '#a89a88', normalScale: 1.2 }, 1 / 2.4, { grime: 0.3, streaks: 0, wet: 0.8, puddles: 0.6, moss: 0.2, height: 0.5 }),
+    muralWall: tint(P('peeling_painted_wall', { normalScale: 1.0 }, 1 / 3, { grime: 0.8, streaks: 1, wet: 0.4, height: 4 }), '#9c5146'),
     bark: P('tree_bark_03', { color: '#7d756c', normalScale: 1.5 }, 1 / 1.6, { grime: 0.2, streaks: 0.5, wet: 0.5, moss: 0.4, height: 2 }),
   };
   M.glass = new THREE.MeshPhysicalMaterial({ color: '#06080a', roughness: 0.07, metalness: 0, transparent: true, opacity: 0.55, envMapIntensity: 1.1, depthWrite: false, specularIntensity: 1, ior: 1.52 });
@@ -130,6 +138,10 @@ export function makeMaterials(A) {
   M.dark = new THREE.MeshStandardMaterial({ color: '#070606', roughness: 0.95 }); M.dark.userData.density = 1;
   M.water = new THREE.MeshStandardMaterial({ color: '#05080a', roughness: 0.04, metalness: 0.2, envMapIntensity: 1.6 }); M.water.userData.density = 0.5;
   M.interior = interiorMaterial();
+  // dead neon: dusty coloured glass tubing, unlit; and incandescent marquee bulbs (a few still burn)
+  M.neonDead = new THREE.MeshPhysicalMaterial({ color: '#5a1d18', roughness: 0.22, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.2, emissive: '#ff3b26', emissiveIntensity: 0.05 }); M.neonDead.userData.density = 1;
+  M.bulbDead = new THREE.MeshStandardMaterial({ color: '#6a5a46', roughness: 0.25, metalness: 0.3, envMapIntensity: 1.2 }); M.bulbDead.userData.density = 1;
+  M.bulbLit = new THREE.MeshBasicMaterial({ color: new THREE.Color(5.5, 3.6, 1.7) }); M.bulbLit.userData.density = 1;
   return M;
 }
 

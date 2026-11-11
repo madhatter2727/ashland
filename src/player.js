@@ -57,7 +57,7 @@ export class Player {
   update(dt, input, opts) {
     const p = this.pos;
     // ---- look ----
-    const sens = 0.0021 * input.sensitivity * opts.lookScale;
+    const sens = 0.0034 * input.sensitivity * opts.lookScale; // was 0.0021 (Hordefall): ~1.6x snappier panning
     this.yaw -= input.mouse.dx * sens;
     this.pitch = clamp(this.pitch - input.mouse.dy * sens, -1.5, 1.5);
 

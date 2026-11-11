@@ -1,7 +1,8 @@
 // THE MIDWAY (east edge + the east half of the plaza): two-storey game halls behind a cast-iron colonnade
 // and a shattered glass marquise, painted oxblood and bottle green under faded gilt signboards; the gilt
-// carousel (static, uncanny: mirrored drum, gilded horses, a torn velvet canopy); boarded game stalls.
+// carousel (static, uncanny: mirrored drum, gilded horses, a torn velvet canopy); painted game booths.
 import * as THREE from 'three';
+import { bulbRow } from './showfront.js';
 import { Frame, P, molding, moldingRing, column, lathe, merge, ironRailing, wallWithOpenings, archSurround, keystone, pilaster, balustrade, mansard } from './kit.js';
 import { storey } from './facade.js';
 import { paintedSign, giltText } from './signs.js';
@@ -94,28 +95,50 @@ export function buildMidway(ctx) {
 
 // ---------- boarded game stall on an old container footprint ----------
 export function stall(ctx, x, z, rot, i, y0 = 0, counter = 1) {
+  // A midway game booth on the old container footprint (same collider, flat walkable roof): board-and-batten
+  // walls, an open counter with dusty prizes on shelves, a timber awning with a scalloped valance and dead
+  // bulbs, an arched crest board with the game's name. The plain long side keeps two framed panels (wall-buys).
   const { B, M, rr, scene } = ctx;
-  const L = 6.1, W = 2.44, Hs = 2.6;
+  const L = 6.1, W = 2.44, Hs = 2.6, stacked = i === 0; // stall 0 carries stall 2 on its roof: no crest
   const w = rot ? W : L, d = rot ? L : W;
   B.colliders.push({ minX: x - w / 2, maxX: x + w / 2, minY: y0, maxY: y0 + Hs, minZ: z - d / 2, maxZ: z + d / 2, walk: false, mat: 'wood', top: y0 + Hs });
-  const F = new Frame(B, x, z, rot ? Math.PI / 2 : 0, y0); // local x along the long side
-  const paint = i % 2 ? M.greenPaint : M.redPaint;
-  F.box(M.stoneDark, -L / 2, L / 2, 0, 0.3, -W / 2, W / 2);
-  F.box(paint, -L / 2 + 0.06, L / 2 - 0.06, 0.3, Hs - 0.35, -W / 2 + 0.06, W / 2 - 0.06);
-  // corner posts (turned) + top rail and cornice; flat walkable roof
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = lathe([[0.1, 0], [0.1, 0.15], [0.07, 0.25], [0.075, 1.7], [0.1, 1.8], [0.06, 1.95], [0.08, 2.0], [0.08, Hs - 0.3], [0, Hs - 0.3]], 12); p.translate(sx * (L / 2 - 0.08), 0, sz * (W / 2 - 0.08)); F.geo(M.gold, p); }
-  F.box(M.boards, -L / 2, L / 2, Hs - 0.35, Hs, -W / 2, W / 2);
-  F.geo(M.gold, moldingRing([[0, 0], [0.05, 0], [0.08, 0.05], [0.08, 0.12], [0, 0.14]], L, W, Hs - 0.3));
-  // the counter side (+z local) boarded over, the other side painted panels with mouldings
+  const F = new Frame(B, x, z, rot ? Math.PI / 2 : 0, y0);
+  const body = i % 2 ? M.woodGreen : M.woodRed, trim = M.woodCream, hw = W / 2;
+  F.box(M.stoneDark, -L / 2, L / 2, 0, 0.22, -hw, hw);
+  F.box(M.deck, -L / 2, L / 2, Hs - 0.16, Hs, -hw, hw); // flat roof deck
+  F.box(trim, -L / 2 - 0.05, L / 2 + 0.05, Hs - 0.32, Hs - 0.14, -hw - 0.05, hw + 0.05);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = lathe([[0.1, 0], [0.1, 0.15], [0.07, 0.25], [0.075, 1.7], [0.1, 1.8], [0.06, 1.95], [0.08, 2.0], [0.08, Hs - 0.3], [0, Hs - 0.3]], 10); p.translate(sx * (L / 2 - 0.08), 0.2, sz * (hw - 0.08)); F.geo(M.gold, p); }
+  for (const sx of [-1, 1]) F.box(body, sx > 0 ? L / 2 - 0.12 : -L / 2, sx > 0 ? L / 2 : -L / 2 + 0.12, 0.22, Hs - 0.32, -hw + 0.1, hw - 0.1); // end walls
   for (const sz of [-1, 1]) {
-    const S = F.sub(0, sz * W / 2, sz > 0 ? 0 : Math.PI);
+    const S = F.sub(0, sz * hw, sz > 0 ? 0 : Math.PI);
     if (sz === counter) {
-      S.box(M.boards, -L / 2 + 0.25, L / 2 - 0.25, 0.95, 0.12 + 0.95, -0.02, 0.06);
-      for (let k = 0; k < 5; k++) { const g = new THREE.BoxGeometry(L - 0.5 - rr() * 0.3, 0.2, 0.04); g.rotateZ((rr() - 0.5) * 0.06); g.translate((rr() - 0.5) * 0.2, 1.15 + k * 0.23, 0.08); S.geo(M.boards, g); }
-      const sign = signMesh(['RING-A-PEG', 'COCONUT SHY', 'HOOK-A-DUCK', 'TEST YOUR STRENGTH', 'ROLL-A-PENNY', 'LUCKY DIP', 'HOOPLA', 'THE TIP-TOP'][i % 8], L - 1.0, 0.36, { bg: i % 2 ? '#14281d' : '#3d1210', h: 200 });
-      scene.add(place(S, sign, 0, 2.38 - 0.0, 0.03));
+      // counter: panelled front, thick top, open window to the prize shelves, half the opening plywooded
+      S.box(body, -L / 2 + 0.12, L / 2 - 0.12, 0.22, 1.02, -0.12, 0);
+      for (let k = -2; k <= 2; k++) { const fr = moldingRing([[0, 0], [0.025, 0], [0.03, 0.02], [0, 0.035]], 0.95, 0.55, 0); fr.rotateX(Math.PI / 2); fr.translate(k * 1.12, 0.62, 0.01); S.geo(M.gold, fr); }
+      S.box(trim, -L / 2 + 0.05, L / 2 - 0.05, 1.02, 1.1, -0.2, 0.22);
+      S.box(M.interior, -L / 2 + 0.12, L / 2 - 0.12, 1.1, Hs - 0.32, -W + 0.12, -W + 0.18);
+      for (const yy of [1.45, 1.85]) S.box(trim, -L / 2 + 0.15, L / 2 - 0.15, yy, yy + 0.04, -W + 0.18, -W + 0.5);
+      const glass = [], tin = [];
+      for (const yy of [1.49, 1.89]) for (let k = 0; k < 16; k++) { if (rr() < 0.25) continue; const xx = -L / 2 + 0.4 + k * 0.33; if (rr() < 0.5) { const b = lathe([[0.04, 0], [0.045, 0.02], [0.045, 0.16], [0.02, 0.22], [0.015, 0.3], [0, 0.3]], 8); b.translate(xx, yy, -W + 0.32); glass.push(b); } else { const c = new THREE.CylinderGeometry(0.05, 0.05, 0.13, 10); c.translate(xx, yy + 0.065, -W + 0.32); tin.push(c); } }
+      for (let k = 0; k < 6; k++) { const c = new THREE.CylinderGeometry(0.05, 0.05, 0.13, 10); c.rotateZ(Math.PI / 2); c.rotateY(rr() * 3); c.translate(-L / 2 + 0.6 + rr() * (L - 1.2), 1.15, -0.4 - rr() * 0.6); tin.push(c); }
+      if (glass.length) S.geo(M.glass, merge(glass), 'keep'); if (tin.length) S.geo(M.brass, merge(tin));
+      const ply = new THREE.BoxGeometry(L / 2 - 0.2, Hs - 1.45, 0.03); ply.rotateZ((rr() - 0.5) * 0.05); ply.translate((i % 3 ? 1 : -1) * (L / 4 - 0.05), (Hs - 0.32 + 1.1) / 2, 0.02); S.geo(M.plywood, ply);
+      // awning on brackets with a scalloped valance and bulbs
+      const aw = new THREE.BoxGeometry(L + 0.2, 0.06, 1.05); aw.rotateX(0.22); aw.translate(0, Hs - 0.42, 0.5); S.geo(body === M.woodRed ? M.woodGreen : M.woodRed, aw);
+      for (let k = 0; k < 12; k++) { const sc = archSurround(-L / 2 - 0.1 + k * (L + 0.2) / 12, -L / 2 - 0.1 + (k + 1) * (L + 0.2) / 12, 0, 0, { w: 0.03, d: 0.03, seg: 0.12 }); sc.rotateX(Math.PI); sc.translate(0, Hs - 0.52, 1.02); S.geo(trim, sc); }
+      for (const sx of [-1, 0, 1]) { const br = new THREE.BoxGeometry(0.06, 0.06, 1.0); br.rotateX(-0.75); br.translate(sx * (L / 2 - 0.1), Hs - 0.75, 0.45); S.geo(M.iron, br); }
+      bulbRow(ctx, S, -L / 2, Hs - 0.62, 1.04, L / 2, Hs - 0.62, 1.04, 0.38, 0.08, i * 9 + 3);
+      if (!stacked) { // arched crest board with the game's name
+        const crest = new THREE.Shape(); crest.moveTo(-L / 2 + 0.3, 0); crest.lineTo(L / 2 - 0.3, 0); crest.lineTo(L / 2 - 0.3, 0.35); crest.quadraticCurveTo(0, 1.05, -L / 2 + 0.3, 0.35); crest.closePath();
+        const cg = new THREE.ExtrudeGeometry(crest, { depth: 0.08, bevelEnabled: false }); cg.translate(0, Hs - 0.05, -0.12); S.geo(body, cg);
+        const sign = signMesh(['RING-A-PEG', 'COCONUT SHY', 'HOOK-A-DUCK', 'TEST YOUR STRENGTH', 'ROLL-A-PENNY', 'LUCKY DIP', 'HOOPLA', 'THE TIP-TOP'][i % 8], L - 1.6, 0.42, { bg: i % 2 ? '#14281d' : '#3d1210', h: 200 });
+        scene.add(place(S, sign, 0, Hs + 0.3, -0.02));
+        for (let k = 0; k <= 10; k++) { const t = k / 10, xx = -L / 2 + 0.3 + t * (L - 0.6), yy = Hs - 0.05 + 0.35 + (1 - (2 * t - 1) ** 2) * 0.35; ctx.bulbs.push({ p: S.point(xx, yy, 0.0), lit: rr() < 0.1 }); }
+      }
     } else {
+      S.box(body, -L / 2 + 0.12, L / 2 - 0.12, 0.22, Hs - 0.32, -0.1, 0);
       for (const k of [-1, 1]) { const fr = moldingRing([[0, 0], [0.03, 0], [0.04, 0.03], [0, 0.05]], 1.6, 0.9, 0); fr.rotateX(Math.PI / 2); fr.translate(k * 1.85, 1.15, 0.02); S.geo(M.gold, fr); }
+      S.box(trim, -L / 2 + 0.12, L / 2 - 0.12, 0.22, 0.4, 0, 0.04);
     }
   }
 }

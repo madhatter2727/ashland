@@ -6,7 +6,9 @@ export class Input {
     this.pressed = new Set();
     this.mouse = { dx: 0, dy: 0, left: false, right: false, leftPressed: false, wheel: 0 };
     this.locked = false;
-    this.sensitivity = parseFloat(localStorage.getItem('hf-sens') || '1');
+    // Ashland stores 'ash-sens'; fall back to a Hordefall-era 'hf-sens', then 1
+    const saved = parseFloat(localStorage.getItem('ash-sens') ?? localStorage.getItem('hf-sens') ?? '1');
+    this.sensitivity = Number.isFinite(saved) && saved > 0 ? saved : 1;
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
       this.keys.add(e.code); this.pressed.add(e.code);

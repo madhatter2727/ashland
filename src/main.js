@@ -6,7 +6,6 @@ import { buildArena } from './world/arena.js';
 import { WallBuys } from './world/wallbuys.js';
 import { Stations } from './world/stations.js';
 import { Drinks, drinkIconURL } from './world/drinks.js';
-import { Barrels } from './world/barrels.js';
 import { makeSky, SUN_DIR } from './world/sky.js';
 import { Player } from './player.js';
 import { Arsenal } from './weapons/arsenal.js';
@@ -79,7 +78,6 @@ class Game {
     this.vmLocal = new THREE.PointLight('#ff8a3a', 0, 4, 2); this.vmScene.add(this.vmLocal);
 
     this.arena = buildArena(scene, this.quality, assets);
-    this.barrels = new Barrels(scene, this.arena, assets); // adds its colliders before anyone copies the list
     this.player = new Player(this.arena.colliders);
     this.player.onLethal = () => this.secondWind();
     this.fx = new Effects(scene, this.quality);
@@ -250,7 +248,7 @@ class Game {
     this.audio.init();
     this.player.reset(); this.arsenal.resetAll(); this.horde.reset(); this.fx.clear();
     this.score = 0; this.pts = 0; this.kills = 0; this.headshots = 0; this.shotsFired = 0; this.shotsHit = 0; this.deadT = 0; this.runTime = 0;
-    this.perks = {}; this.drinksOwned = {}; this.shopT = 0; this.applyPerks(); this.renderPerkRow(); this.barrels.respawn(); this.throwables.reset(); this.blade.reset(); this.powerups.reset(); this.stations.reset(); this.drinks.reset(); this.areas.reset(); this.nightfall.snap(1); this.immuneT = 0; this.renderDrinks(); this.power.bounty = this.power.reaper = 0; this.horde.instaKill = false; this.slowT = 0; this.audio.pitch = 1; this.renderPowers(); this.arsenal.bladeOut = false;
+    this.perks = {}; this.drinksOwned = {}; this.shopT = 0; this.applyPerks(); this.renderPerkRow(); this.throwables.reset(); this.blade.reset(); this.powerups.reset(); this.stations.reset(); this.drinks.reset(); this.areas.reset(); this.nightfall.snap(1); this.immuneT = 0; this.renderDrinks(); this.power.bounty = this.power.reaper = 0; this.horde.instaKill = false; this.slowT = 0; this.audio.pitch = 1; this.renderPowers(); this.arsenal.bladeOut = false;
     this.damageFx = 0; this.minHpFrac = 1; this.gaspUsed = false; this.specialLive = null; this.screenBlood = 0; this.hudDirty = true; $('bossbar').classList.remove('on');
     this.horde.start();
     this.state = 'play';
@@ -304,7 +302,6 @@ class Game {
     const R = opts.radius ?? 6.5 * k;
     const kills = this.horde.blast(p, R, opts.dmg ?? 260 * k);
     if (kills >= 3) this.feed(`<b>${kills}× MULTI-KILL</b>`, 50 * kills), this.addScore(50 * kills);
-    for (const b of this.barrels.near(p, 4.6 * Math.max(k, 0.6))) this.barrels.damage(b, 999, 0.1 + b.pos.distanceTo(p) * 0.05);
     const P = this.player, pd = P.pos.clone().setY(P.pos.y + 0.9).distanceTo(p);
     if (!opts.noSelf && pd < R && P.alive) {
       const f = 1 - pd / R;
@@ -361,7 +358,6 @@ class Game {
     const sp = this.specialLive; this.specialLive = null;
     if (sp) this.specialCleared(sp);
     this.audio.play('waveEnd'); this.addScore(250 * n); this.throwables.refillWave(); this.hudDirty = true;
-    this.barrels.respawn(this.player.pos);
     this.onWaveCleared?.(n);
     this.shopT = 2.6; // let the banner land, then open the shop
   }
@@ -536,7 +532,6 @@ class Game {
     }
     if (endT === wallT && wh) {
       const p = origin.clone().addScaledVector(dir, wallT);
-      if (wh.c.barrel) { const fall = clamp((wallT - def.falloffStart) / (def.falloffEnd - def.falloffStart), 0, 1); this.barrels.damage(wh.c.barrel, lerp(def.damage, def.damageMin, fall)); }
       this.fx.impact(p, n.clone(), wh.c.mat);
       if (Math.random() < (def.pellets > 1 ? 0.25 : 1)) {
         const dist = p.distanceTo(this.player.pos);
@@ -944,7 +939,6 @@ class Game {
 
     if (active) {
       this.horde.update(worldDt, this.time, this.camera);
-      this.barrels.update(worldDt, this.fx, (p) => this.explode(p, 1));
       this.throwables.update(worldDt, this.time);
       if (this.state === 'play') this.updatePowers(dt);
       this.wallbuys.update(this.time);
@@ -971,7 +965,7 @@ class Game {
     this.screenBlood = Math.max(0, (this.screenBlood || 0) - dt * 0.55); u.blood.value = this.screenBlood;
 
     this.updateHUD(raw, ads);
-    if (active) this.minimap.draw(raw, p, this.horde, this.barrels, this.throwables);
+    if (active) this.minimap.draw(raw, p, this.horde, this.throwables);
     this.cpuMs = lerp(this.cpuMs || 0, performance.now() - t0, 0.1);
     this.post.render();
     input.endFrame();
@@ -1086,8 +1080,6 @@ window.__debug = {
   select(i) { game.arsenal.select(i); },
   give(id) { return game.arsenal.give(id); },
   pts(n) { game.pts = n; game.hudDirty = true; },
-  barrels() { return game.barrels.list.map((b) => ({ x: b.pos.x, z: b.pos.z, alive: b.alive })); },
-  boom(i) { const b = game.barrels.list[i]; game.barrels.damage(b, 999); },
   clearWave() { const H = game.horde; H.toSpawn = 0; H.bossDelay = 0; for (const e of H.enemies) if (!e.dead) { e.hp = 0; H.kill(e, e.pos.clone(), new THREE.Vector3(0, 0, 1), 50, { id: 'ar' }, false); } },
   info() { const A = game.arsenal; return { state: game.state, weapon: A.def.id, mag: A.current.mag, ads: A.ads, fps: game.fps, cpuMs: game.cpuMs, hp: game.player.health, wave: game.horde.wave, alive: game.horde.aliveCount(), idle: game.horde.enemies.filter((e) => !e.dead && !e.aware).length, kills: game.kills, pos: game.player.pos.toArray() }; },
   wave(n) { const H = game.horde; H.wave = n - 1; H.toSpawn = 0; H.bossDelay = 0; for (const e of H.enemies) if (!e.dead) { e.hp = 0; H.kill(e, e.pos.clone(), new THREE.Vector3(0, 0, 1), 50, { id: 'ar' }, false); } H.cleared = false; H.hold = false; H.nextWave(); return { wave: H.wave, special: H.special?.type || null, count: H.toSpawn, hpMul: +H.W.hp.toFixed(2), gap: +H.W.gap.toFixed(2), maxAlive: H.W.maxAlive, brutes: H.brutesLeft, bloaters: H.bloatersLeft }; },

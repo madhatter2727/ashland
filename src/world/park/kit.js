@@ -134,7 +134,7 @@ export function column(h, r, { flutes = 20, seg = 40, capital = 'doric' } = {}) 
   const base = lathe([[0, 0], [r * 1.42, 0], [r * 1.42, r * 0.22], [r * 1.3, r * 0.3], [r * 1.34, r * 0.42], [r * 1.24, r * 0.55], [r * 1.12, r * 0.62], [r * 1.16, r * 0.72], [r * 1.05, r * 0.8], [0, r * 0.8]], seg);
   parts.push(base);
   const sh0 = r * 0.8, sh1 = h - r * 1.3;
-  const shaft = new THREE.CylinderGeometry(r, r, sh1 - sh0, seg * 2, 12, true);
+  const shaft = new THREE.CylinderGeometry(r, r, sh1 - sh0, seg + 8, 6, true);
   const p = shaft.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i), t = Math.min(1, Math.max(0, (y + (sh1 - sh0) / 2) / (sh1 - sh0)));

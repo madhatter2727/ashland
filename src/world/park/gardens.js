@@ -1,6 +1,6 @@
 // THE GARDENS (west edge + west plaza): a long cast-iron orangery with a glass dome over each wing, most of
 // its panes gone; inside, the plants it was built for have died where they stood. Out front: a dry
-// reflecting pool with a marble horse rearing over weeds, clipped hedges run wild, dead trees.
+// reflecting pool with a dark bronze horse rearing over weeds, clipped hedges run wild, dead trees.
 import * as THREE from 'three';
 import { Frame, P, molding, moldingRing, column, lathe, merge, deadTree, ironRailing } from './kit.js';
 import { mulberry } from '../../core/util.js';
@@ -77,7 +77,7 @@ export function buildGardens(ctx) {
   { const ped = merge([new THREE.BoxGeometry(1.8, 0.35, 1.8).translate(0, 0.175, 0), lathe([[0.7, 0], [0.62, 0.2], [0.48, 0.5], [0.5, 1.2], [0.62, 1.35], [0.75, 1.5], [0, 1.5]], 24).translate(0, 0.35, 0)]); ped.translate(fx, 0, fz); B.add(M.marbleTrim, ped);
     const basin = lathe([[0, 0], [1.6, 0], [1.7, 0.1], [1.75, 0.4], [1.62, 0.42], [1.55, 0.2], [0, 0.2]], 32); basin.translate(fx, 1.85, fz); B.add(M.marble, basin);
     B.col(fx - 0.9, fx + 0.9, 0, 2.3, fz - 0.9, fz + 0.9);
-    propAt('horse_statue_01', fx, 2.05, fz, Math.PI / 2 + 0.3, 2.6); }
+    propAt('horse_statue_01', fx, 2.05, fz, Math.PI / 2 + 0.3, 2.6, { mat: 'bronzeOld' }); }
   for (let i = 0; i < 16; i++) { const x = px0 + 0.8 + rr() * (px1 - px0 - 1.6), z = pz0 + 0.8 + rr() * (pz1 - pz0 - 1.6); if (Math.hypot(x - fx, z - fz) < 1.3) continue; propAt(['nettle_plant#nettle_plant_medium_b_LOD0', 'weed_plant_02#weed_plant_02_d_LOD0', 'fern_02#fern_02_a', 'nettle_plant#nettle_plant_small_b_LOD0'][i % 4], x, 0, z, rr() * 6, 0.4 + rr() * 0.6); }
   for (const [x, z, r] of [[px0 + 0.25, fz, Math.PI / 2], [px1 - 0.25, fz, -Math.PI / 2]]) propAt('lion_head', x, 0.1, z, r, 0.32);
 

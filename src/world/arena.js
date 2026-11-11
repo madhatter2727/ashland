@@ -12,6 +12,7 @@ import { buildPalace } from './park/palace.js';
 import { buildEsplanade } from './park/esplanade.js';
 import { buildMidway, buildCarousel, stall } from './park/midway.js';
 import { buildGardens } from './park/gardens.js';
+import { flushBulbs } from './park/showfront.js';
 
 export const ARENA = { half: 36, cell: 1 };
 export let PARK_MATS = null;
@@ -27,7 +28,7 @@ export function buildArena(scene, quality, A) {
   const propAt = (id, x, y, z, rotY = 0, height = 1, o = {}) => props.push({ id, m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, rotY).multiply(o.q || new THREE.Quaternion()), new THREE.Vector3(1, 1, 1)), height, o });
   const lights = [], fires = [];
   const inArea = (x, z, m = 0.8) => AREAS.list.some(({ rect: [x0, z0, x1, z1] }) => x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m);
-  const ctx = { B, M, A, rr, scene, propAt, lights, quality, inArea, H };
+  const ctx = { B, M, A, rr, scene, propAt, lights, quality, inArea, H, bulbs: [] };
 
   // ---------- ground: wet herringbone brick, marble plaza, gardens of gravel and trampled beds ----------
   for (const m of [M.marbleFloor, M.gravel, M.leaves, M.mud, M.mossCobble]) { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -2; }
@@ -126,48 +127,6 @@ export function buildArena(scene, quality, A) {
   stairs(-12.95, -5.4, 1, 0, 2.2, 2.6, 10, M.boards);
   buildCarousel(ctx, 15.7, 9);
 
-  // ---------- the old viaduct (overpass line): ashlar piers, arched spans, a collapsed middle span ----------
-  { const z0 = -20.5, z1 = -13.5, dy = 6.6;
-    for (const x of [-26, -13, 13, 26]) {
-      B.col(x - 0.7, x + 0.7, 0, dy, -17.7, -16.3);
-      const F = new Frame(B, x, -17, 0);
-      F.box(M.stoneDark, -0.8, 0.8, 0, 0.6, -1.0, 1.0); F.box(M.stone, -0.7, 0.7, 0.6, dy, -0.85, 0.85);
-      F.geo(M.marbleTrim, moldingRing(P.string(1.4), 1.4, 1.7, 4.0));
-    }
-    const span = (xa, xb, wsegs) => {
-      B.col(xa, xb, dy, dy + 0.9, z0, z1);
-      for (const fz of [z1, z0]) {
-        const F = new Frame(B, 0, fz, fz > -17 ? 0 : Math.PI);
-        const sgn = fz > -17 ? 1 : -1, a = Math.min(xa, xb), b = Math.max(xa, xb);
-        const L0 = sgn > 0 ? a : -b, L1 = sgn > 0 ? b : -a;
-        const sh = new THREE.Shape(); sh.moveTo(L0, 4.0); const piers = [];
-        const segs = wsegs.map(([u, v]) => (sgn > 0 ? [u, v] : [-v, -u])).sort((m, n) => m[0] - n[0]);
-        sh.lineTo(L0, dy + 0.9); sh.lineTo(L1, dy + 0.9); sh.lineTo(L1, 4.0);
-        for (let si = segs.length - 1; si >= 0; si--) { const [s0, s1] = segs[si], r = (s1 - s0) / 2 - 0.3, cx = (s0 + s1) / 2;
-          sh.lineTo(s1, 4.0); sh.lineTo(cx + r, 4.0); for (let k = 0; k <= 12; k++) { const ang = (k / 12) * Math.PI; sh.lineTo(cx + Math.cos(ang) * r, 4.0 + Math.sin(ang) * Math.min(r, 2.2)); } sh.lineTo(s0, 4.0); }
-        sh.closePath();
-        const g = new THREE.ExtrudeGeometry(sh, { depth: 0.6, bevelEnabled: false, curveSegments: 6 }); g.translate(0, 0, -0.6); F.geo(M.stone, g);
-        F.geo(M.marbleTrim, molding(P.cornice(0.5), L0, L1, dy + 0.6, 0));
-        const rail = ironRailing(L1 - L0 - 0.4, 1.0, 0.13); rail.translate((L0 + L1) / 2, dy + 0.9, -0.25); F.geo(M.iron, rail);
-      }
-      const deck = new THREE.BoxGeometry(Math.abs(xb - xa), 0.3, z1 - z0 - 1.2); deck.translate((xa + xb) / 2, dy + 0.75, (z0 + z1) / 2); B.add(M.mossCobble, deck);
-      const soffit = new THREE.BoxGeometry(Math.abs(xb - xa), 0.6, z1 - z0 - 1.2); soffit.translate((xa + xb) / 2, dy + 0.3, (z0 + z1) / 2); B.add(M.stoneDark, soffit);
-    };
-    span(-36, -6, [[-36, -26.7], [-25.3, -13.7], [-12.3, -6.6]]); span(12, 36, [[12.6, 12.4], [13.7, 25.3], [26.7, 36]].filter(([u, v]) => v - u > 1));
-    // the fallen span: tilted deck, sheared voussoirs, ashlar blocks heaped at its foot
-    const F = new Frame(B, 1.9, -17, 0);
-    const slab = new THREE.BoxGeometry(9, 1.2, 6.6); slab.rotateZ(-0.62); slab.translate(0, 2.8, 0); F.geo(M.stoneDark, slab);
-    const top = new THREE.BoxGeometry(8.6, 0.3, 5.6); top.translate(0, 0.75, 0); top.rotateZ(-0.62); top.translate(0, 2.8, 0); F.geo(M.mossCobble, top);
-    const lip = new THREE.BoxGeometry(1.6, 1.3, 6.9); lip.rotateZ(-0.62); lip.translate(2.7, 0.75, 0); F.geo(M.stoneDark, lip);
-    const rr2 = mulberry(77), blocks = [];
-    for (let i = 0; i < 46; i++) { const w = 0.35 + rr2() * 0.55, h = 0.25 + rr2() * 0.3, d = 0.3 + rr2() * 0.5; const g = new THREE.BoxGeometry(w, h, d); g.rotateX((rr2() - 0.5) * 0.9); g.rotateZ((rr2() - 0.5) * 0.9); g.rotateY(rr2() * 6);
-      const zone = i < 26; g.translate(zone ? 3.6 + rr2() * 2.4 : -7 + rr2() * 16, zone ? h * 0.4 + rr2() * 0.5 : h * 0.4, zone ? -3.2 + rr2() * 6.4 : (rr2() < 0.5 ? -4.5 : 4.5) + (rr2() - 0.5) * 2); blocks.push(g); }
-    F.geo(M.stone, merge(blocks));
-    for (const [x0, sgn] of [[-6, 1], [12, -1]]) { const rag = []; for (let i = 0; i < 7; i++) { const g = new THREE.BoxGeometry(0.4 + rr2() * 0.5, 0.3 + rr2() * 0.4, 0.5 + rr2() * 0.6); g.rotateZ((rr2() - 0.5) * 0.5); g.translate(x0 - sgn * 0.1 + sgn * rr2() * 0.3, dy + 0.3 + rr2() * 0.6, z0 + 0.6 + i * 0.95); rag.push(g); } B.add(M.stoneDark, merge(rag)); }
-    for (let i = 0; i < 4; i++) colliders.push({ minX: -2 + i * 1.9, maxX: -0.1 + i * 1.9, minY: 0, maxY: 5.9 - i * 1.55, minZ: -20.3, maxZ: -13.7, walk: false, mat: 'concrete' });
-    propAt('weed_plant_02#weed_plant_02_b_LOD0', 5.4, 0, -18.6, 1, 0.9); propAt('nettle_plant#nettle_plant_tall_a_LOD0', 6.6, 0, -15.2, 2, 1.1);
-  }
-
   // ---------- stone planters gone wild (old jersey-barrier cover) ----------
   const planter = (x, z, rot) => {
     const w = rot ? 0.6 : 3, d = rot ? 3 : 0.6;
@@ -182,13 +141,21 @@ export function buildArena(scene, quality, A) {
   [[-6, -12, 0], [6, 12, 0], [-9, 9, 1], [10, -8, 1], [-22, 2, 1], [23, -2, 1], [0, -26, 0], [0, 26, 0], [-27, -18, 0], [28, 16, 0], [13, 22, 1], [-10, -22, 1]]
     .forEach(([x, z, rot]) => planter(x, z, rot));
 
-  // ---------- crates (scanned Poly Haven crate) ----------
-  const crateBox = new THREE.Box3().setFromObject(A.models.wooden_crate_01.scene), csz = crateBox.getSize(new THREE.Vector3());
-  const crateAt = (x, y, z, s, rot) => { propAt('wooden_crate_01', x, y, z, rot, s, { sx: s / Math.max(csz.x, csz.z) / (s / csz.y) }); B.col(x - s / 2, x + s / 2, y, y + s, z - s / 2, z + s / 2, { surface: 'wood' }); };
-  [[-4, -15], [-3, -16.2], [7, 17], [16, -6], [-19, 12], [26, 6], [-26, -6], [4, -29]].forEach(([x, z], i) => {
-    const s = 1.1 + (i % 3) * 0.15; crateAt(x, 0, z, s, (i % 2) * Math.PI / 2 + (rr() - 0.5) * 0.2);
-    if (i % 3 === 0) crateAt(x + 0.1, s, z - 0.05, 0.9, 0.3);
-  });
+  // ---------- ride queue fencing (old crate cover spots): iron panels between brass-capped posts ----------
+  const queueRail = (x, z, rot, len = 2.6) => {
+    const F = new Frame(B, x, z, rot);
+    const rail = ironRailing(len, 1.0, 0.12); F.geo(M.iron, rail);
+    for (const u of [-len / 2, len / 2]) {
+      const post = lathe([[0.075, 0], [0.075, 0.06], [0.05, 0.1], [0.045, 1.02], [0.07, 1.06], [0.075, 1.12], [0.05, 1.18], [0, 1.2]], 12);
+      post.translate(u, 0, 0); F.geo(M.iron, post);
+      const cap = new THREE.SphereGeometry(0.07, 12, 8); cap.translate(u, 1.22, 0); F.geo(M.brass, cap);
+    }
+    const top = new THREE.CylinderGeometry(0.03, 0.03, len, 10); top.rotateZ(Math.PI / 2); top.translate(0, 1.05, 0); F.geo(M.brass, top);
+    const a = F.point(-len / 2 - 0.08, 0, -0.12), b = F.point(len / 2 + 0.08, 0, 0.12);
+    B.col(Math.min(a.x, b.x), Math.max(a.x, b.x), 0, 1.15, Math.min(a.z, b.z), Math.max(a.z, b.z), { surface: 'metal' });
+  };
+  [[-4, -15.4, 0], [7, 17, 0], [16, -6, Math.PI / 2], [-19, 12, Math.PI / 2], [26, 6, 0], [-26, -6, Math.PI / 2], [4, -29, 0]]
+    .forEach(([x, z, r]) => queueRail(x, z, r));
 
   // ---------- cast-iron lamp standards (4 real lights + unlit / dying ones along the walks) ----------
   const lampPost = (x, z, rot, lit, real) => {
@@ -252,6 +219,7 @@ export function buildArena(scene, quality, A) {
   propAt('dead_tree_trunk_02', -27, 0, -21.5, 0.4, 0.75); colliders.push({ minX: -29, maxX: -25, minY: 0, maxY: 0.7, minZ: -22.3, maxZ: -20.7, walk: false, mat: 'wood' });
 
   B.flush(scene, { noShadow: new Set([M.interior, M.glass, M.marbleFloor, M.gravel, M.leaves, M.mud, M.paving]) });
+  flushBulbs(scene, M, ctx.bulbs);
 
   // ---------- scanned models, instanced per mesh, weathered by the shared shader ----------
   const byKey = new Map();
@@ -275,7 +243,8 @@ export function buildArena(scene, quality, A) {
       const im = new THREE.InstancedMesh(o.geometry, mat, list.length);
       const lm = new THREE.Matrix4().multiplyMatrices(off, o.matrixWorld);
       list.forEach((p, i) => { const k = p.height / size.y, sx = p.o.sx ?? 1; im.setMatrixAt(i, Mx.copy(p.m).multiply(new THREE.Matrix4().makeScale(k * sx, k, k * sx)).multiply(lm)); });
-      im.castShadow = !/glass/i.test(mat.name); im.receiveShadow = true;
+      // small props and foliage skip the shadow pass (it re-renders every caster): only big silhouettes cast
+      im.castShadow = list[0].height >= 1.6 && !/glass|leaf|leaves|fern|nettle|weed|shrub/i.test(mat.name + ' ' + id); im.receiveShadow = true;
       im.computeBoundingSphere(); scene.add(im);
       propTris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3 * list.length;
     });

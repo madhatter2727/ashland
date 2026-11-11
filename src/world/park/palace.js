@@ -1,56 +1,58 @@
-// THE PALACE (north edge): an original Beaux-Arts clock-palace. Rusticated arcade, a marble piano nobile with
-// pedimented arched windows and balconettes, attic storey, deep cornice, urn-topped balustrade and verdigris
-// copper mansards. The square clock tower over the north gate carries a stopped clock, an open belfry with a
-// bronze bell, and a ribbed copper dome with a lantern and gilt armillary finial. No spires, no turrets.
+// THE PALACE OF HOURS (north edge): the park's great dark ride, a clockwork show building. Brick show halls
+// with boarded arcades and faded bills, a mural storey, stepped false fronts with painted attraction boards;
+// over the north gate the clock tower (stopped at 11:47) wears a huge broken marquee, one end torn loose and
+// sagging, with ticket windows set into the tower piers. No spires, no turrets.
 import * as THREE from 'three';
-import { Frame, P, molding, moldingRing, column, mansard, dome, lathe, merge, archSurround, keystone, wallWithOpenings, pediment, balustrade } from './kit.js';
+import { Frame, P, molding, moldingRing, column, mansard, dome, lathe, merge, archSurround, keystone, wallWithOpenings, pediment, balustrade, ironRailing } from './kit.js';
 import { storey, parapet } from './facade.js';
-import { giltText, clockDial } from './signs.js';
+import { giltText, clockDial, paintedSign } from './signs.js';
+import { poster, posterCase, bulbRow, ticketKiosk } from './showfront.js';
 
 function invert(g) { g = g.index ? g.toNonIndexed() : g; const p = g.attributes.position; for (let i = 0; i < p.count; i += 3) { const x = p.getX(i + 1), y = p.getY(i + 1), z = p.getZ(i + 1); p.setXYZ(i + 1, p.getX(i + 2), p.getY(i + 2), p.getZ(i + 2)); p.setXYZ(i + 2, x, y, z); } g.computeVertexNormals(); return g; }
 
 export function buildPalace(ctx) {
   const { B, M, rr, scene, propAt } = ctx;
   const F = new Frame(B, 0, -36, 0);
-  const urns = [];
-  // ---------------- wings ----------------
+  // ---------------- show-building wings ----------------
+  // Brick show halls: boarded arcade with bills in iron cases, a great faded mural storey above, a stepped
+  // false-front parapet with painted boards, bulb rows (nearly all dead), a billboard and a water tank on top.
+  const boards = [['THE PALACE OF HOURS', 'A VOYAGE THROUGH TIME  ·  EVERY HALF HOUR'], ['TWELVE HALLS OF WONDER', 'THE CLOCKWORK DARK RIDE  ·  ALL AGES WELCOME']];
   for (const side of [-1, 1]) {
-    const xa = side < 0 ? -44 : 6.2, xb = side < 0 ? -6.2 : 44;
-    // solid mass for collisions (the facade plane is z = 0 -> world z = -36)
+    const xa = side < 0 ? -44 : 6.2, xb = side < 0 ? -6.2 : 44, cx = (xa + xb) / 2;
     F.col(xa, xb, 0, 17, -8, 0, { surface: 'concrete' });
     F.geo(M.stoneDark, molding(P.plinth(1.1), xa, xb, 0, 0));
-    storey(F, M, rr, xa, xb, { y0: 0, y1: 6.6, bay: 4, mat: M.stoneDark, win: { w: 2.3, sill: 0.62, spring: 4.1 }, surround: M.stone, keystone: M.marble, fills: ['broken', 'boards', 'glass', 'broken', 'dark'], frame: M.iron, course: { mat: M.stone, profile: P.cornice(0.55) } });
-    storey(F, M, rr, xa, xb, { y0: 6.6, y1: 13.1, bay: 4, mat: M.stone, win: { w: 1.7, sill: 1.05, spring: 4.4 }, surround: M.marbleTrim, keystone: M.marble, pediment: M.marbleTrim, balconette: M.marbleTrim, pilasters: { mat: M.marble, w: 0.56, d: 0.22 }, fills: ['glass', 'glass', 'broken', 'shutter', 'glass'], frame: M.iron, shutterMat: M.shutter, course: { mat: M.stone, profile: P.string(1.4) } });
-    storey(F, M, rr, xa, xb, { y0: 13.1, y1: 15.7, bay: 4, mat: M.stone, win: { w: 1.25, sill: 0.45, spring: 1.75, seg: 0.14 }, surround: M.marbleTrim, fills: ['glass', 'dark', 'broken'], frame: M.iron });
-    F.geo(M.marbleTrim, molding(P.cornice(1.35), xa, xb, 15.6, 0));
-    parapet(F, M, xa + 0.4, xb - 0.4, 16.35, { pedestal: 4, mat: M.marbleTrim, urns });
-    // copper mansard with oeil-de-boeuf dormers and a few chimneys
-    const rw = xb - xa - 1.2, rcx = (xa + xb) / 2;
-    const roof = mansard(rw, 6.6, 3.8, 1.25, 1.1); roof.translate(rcx, 16.35, -4.2); F.geo(M.copper, roof);
-    const crest = molding([[0, 0], [0.14, 0], [0.14, 0.22], [0, 0.3]], xa + 2.2, xb - 2.2, 16.35 + 4.9, -4.2); F.geo(M.copper, crest);
-    for (let x = xa + 2; x < xb - 1; x += 4) {
-      const dg = []; const ring = new THREE.TorusGeometry(0.55, 0.13, 8, 22); dg.push(ring);
-      const hood = new THREE.SphereGeometry(0.72, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); hood.scale(1, 0.55, 0.9); hood.translate(0, 0.45, -0.25); dg.push(hood);
-      const d = merge(dg); d.rotateX(-0.12); d.translate(x, 18.6, -1.25); F.geo(M.copper, d);
-      const disc = new THREE.CircleGeometry(0.5, 20); disc.translate(x, 18.6, -1.3); F.geo(M.dark, disc, 'keep');
-      const sc = new THREE.TorusGeometry(0.5, 0.025, 4, 16); sc.translate(x, 18.6, -1.27); F.geo(M.iron, sc);
+    const g = storey(F, M, rr, xa, xb, { y0: 0, y1: 6.6, bay: 4, mat: M.brickDeep, win: { w: 2.5, sill: 0.4, spring: 4.0 }, surround: M.woodCream, fills: ['plywood', 'boards', 'plywood', 'dark', 'plywood'], frame: M.woodGreen, course: { mat: M.woodCream, profile: P.string(1.4) } });
+    for (let i = 1; i < g.n; i++) if ((i + (side > 0 ? 1 : 0)) % 2) posterCase(F, M, scene, xa + g.bw * i, 3.0, 0.02, (i + side + 3) % 6, i * 5 + side, 1.02);
+    bulbRow(ctx, F, xa + 0.3, 6.45, 0.32, xb - 0.3, 6.45, 0.32, 0.4, 0.04, 31 + side);
+    // the mural storey: peeling painted render with two giant faded bills framed in painted timber
+    F.box(M.muralWall, xa, xb, 6.6, 15.6, -0.5, 0.02);
+    const mw = 5.0, mh = mw * 1.5;
+    for (const fx of [0.3, 0.7]) {
+      const mx = xa + (xb - xa) * fx, my = 11.0;
+      F.box(M.woodCream, mx - mw / 2 - 0.35, mx + mw / 2 + 0.35, my - mh / 2 - 0.35, my + mh / 2 + 0.35, 0.02, 0.1);
+      const mur = poster(M, fx < 0.5 ? (side < 0 ? 0 : 2) : (side < 0 ? 5 : 1), 40 + side + fx * 10, mw); mur.position.copy(F.point(mx, my, 0.12)); mur.rotation.y = F.rotY; scene.add(mur);
     }
-    for (const fx of [0.2, 0.55, 0.85]) { const cx = xa + (xb - xa) * fx; F.box(M.brickDeep, cx - 0.6, cx + 0.6, 19, 23.2, -5.4, -4.2); F.box(M.stone, cx - 0.72, cx + 0.72, 23.2, 23.45, -5.52, -4.08); for (const px of [-0.3, 0.3]) { const pot = lathe([[0.13, 0], [0.15, 0.1], [0.11, 0.5], [0.13, 0.55], [0.1, 0.6], [0, 0.6]], 10); pot.translate(cx + px, 23.45, -4.8); F.geo(M.copper, pot); } }
-    // central frontispiece of each wing: giant marble columns, triangular pediment, tall pavilion roof
-    const pc = side * 24, pw = 11;
-    F.box(M.stone, pc - pw / 2, pc + pw / 2, 6.6, 15.7, 0, 0.55);
-    for (let k = 0; k < 4; k++) { const cxk = pc - pw / 2 + 1.1 + k * ((pw - 2.2) / 3); const c = column(6.9, 0.36, { capital: 'corinthian' }); c.translate(cxk, 6.75, 1.05); F.geo(M.marble, c); }
-    F.box(M.marbleTrim, pc - pw / 2 - 0.2, pc + pw / 2 + 0.2, 13.65, 14.5, 0.3, 1.55); // entablature
-    F.geo(M.marbleTrim, molding(P.cornice(1.1), pc - pw / 2 - 0.3, pc + pw / 2 + 0.3, 14.5, 1.5));
-    const ped = pediment(pc, 15.1, pw + 0.6, { h: 2.6, d: 1.4 }); ped.translate(0, 0, 0.1); F.geo(M.marbleTrim, ped);
-    const tymp = pediment(pc, 15.2, pw - 1.0, { h: 2.1, d: 0.2 }); tymp.translate(0, 0, 1.3); F.geo(M.stone, tymp);
-    F.box(M.stoneDark, pc - 0.5, pc + 0.5, 15.25, 16.9, 1.35, 1.55); // relief cartouche
-    const proof = mansard(pw + 0.4, 8, 6.2, 1.6, 1.6); proof.translate(pc, 17.6, -3.6); F.geo(M.copper, proof);
-    const fin = lathe([[0.3, 0], [0.32, 0.4], [0.12, 0.8], [0.22, 1.2], [0.04, 2.4], [0, 2.6]], 12); fin.translate(pc, 25.2, -3.6); F.geo(M.gold, fin);
-    // statues on the frontispiece balustrade
-    for (const sx of [-1, 1]) propAt('gothic_statue', pc + sx * (pw / 2 - 0.2), 15.15, -36 + 1.0, 0, 1.7);
+    for (let x = xa + 0.3; x <= xb - 0.2; x += (xb - xa - 0.6) / 6) F.box(M.woodGreen, x - 0.22, x + 0.22, 6.6, 15.6, 0.02, 0.2);
+    F.geo(M.woodCream, molding(P.cornice(1.2), xa, xb, 15.4, 0));
+    bulbRow(ctx, F, xa + 0.3, 15.35, 0.5, xb - 0.3, 15.35, 0.5, 0.42, 0.05, 41 + side);
+    // stepped false front with the attraction boards
+    const steps = [[xa, xb, 15.95, 17.4], [cx - 11, cx + 11, 17.4, 19.6], [cx - 6.5, cx + 6.5, 19.6, 21.4]];
+    for (const [x0, x1, y0, y1] of steps) { F.box(M.woodRed, x0, x1, y0, y1, -0.5, 0); F.geo(M.woodCream, molding(P.cornice(0.6), x0, x1, y1 - 0.25, 0)); }
+    const bd = boards[side < 0 ? 0 : 1];
+    const sp = new THREE.Mesh(new THREE.PlaneGeometry(20.4, 1.9), new THREE.MeshStandardMaterial({ map: paintedSign(bd[0], { bg: '#22362a', fg: '#d8b35a', sub: bd[1], w: 2048, h: 192 }), roughness: 0.8 }));
+    sp.position.copy(F.point(cx, 18.5, 0.04)); sp.rotation.y = F.rotY; scene.add(sp);
+    F.box(M.slate, xa, xb, 15.6, 16.4, -8, -0.5); // roof deck behind the false front
+    if (side < 0) { // rooftop billboard on its iron frame
+      F.geo(M.iron, ironRailing(10, 4.2, 0.5).translate(cx - 9, 16.4, -4.5));
+      F.box(M.iron, cx - 14, cx - 4, 20.5, 20.7, -4.7, -4.3);
+      const bb = poster(M, 1, 77, 2.6); bb.scale.set(3.8, 1.05, 1); bb.position.copy(F.point(cx - 9, 18.6, -4.2)); bb.rotation.y = F.rotY; scene.add(bb);
+    } else { // water tank on stilts
+      const tk = []; const body = lathe([[1.6, 0], [1.6, 2.6], [1.7, 2.7], [0.2, 3.6], [0, 3.6]], 20); body.translate(cx + 8, 19.6, -4.5); tk.push(body);
+      for (const [dx, dz] of [[-1.2, -1.2], [1.2, -1.2], [-1.2, 1.2], [1.2, 1.2]]) { const l = new THREE.CylinderGeometry(0.1, 0.12, 3.2, 8); l.translate(cx + 8 + dx, 18.0, -4.5 + dz); tk.push(l); }
+      F.geo(M.woodGreen, tk[0]); F.geo(M.iron, merge(tk.slice(1)));
+    }
   }
-  for (const u of urns) propAt('brass_vase_01', u.x, u.y, u.z, rr() * 6, 0.85);
+
 
   // ---------------- clock tower over the gate ----------------
   const tz0 = 0.7, tz1 = -11.3, tw = 6.2;
@@ -112,11 +114,52 @@ export function buildPalace(ctx) {
 
   // the iron gates, thrown open against the passage walls
   for (const sx of [-1, 1]) propAt('large_iron_gate#' + (sx < 0 ? 'large_iron_gate_left_door' : 'large_iron_gate_right_door'), sx * 3.3, 0, -36 + tz1 + 3.6 + 1.6, sx * Math.PI / 2 * 0.94, 1.2);
-  // bronze figures on plinths flanking the tower
+  // ticket kiosks flanking the tower (on the old statue plinth spots: same cover)
   for (const sx of [-1, 1]) {
-    const x = sx * 8.6, z = -34.2;
-    const pl = merge([new THREE.BoxGeometry(1.5, 0.35, 1.5).translate(0, 0.175, 0), new THREE.BoxGeometry(1.15, 1.6, 1.15).translate(0, 1.15, 0), new THREE.BoxGeometry(1.4, 0.22, 1.4).translate(0, 2.06, 0)]);
-    pl.translate(x, 0, z); B.add(M.marble, pl); B.col(x - 0.75, x + 0.75, 0, 2.17, z - 0.75, z + 0.75);
-    propAt('gothic_statue', x, 2.17, z, 0.15 * sx, 1.9);
+    const front = ticketKiosk(ctx, sx * 8.6, -34.25, -Math.PI / 8, { r: 0.95 });
+    const tk = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.2), new THREE.MeshStandardMaterial({ map: paintedSign('TICKETS', { bg: '#2f4a3a', fg: '#e2c27a', w: 1024, h: 256 }), roughness: 0.8 }));
+    tk.position.copy(front); tk.position.y = 2.42; scene.add(tk);
   }
+  // ticket windows let into the tower piers
+  for (const sx of [-1, 1]) {
+    const x0 = sx < 0 ? -5.95 : 3.85, x1 = sx < 0 ? -3.85 : 5.95, cx = (x0 + x1) / 2, z0 = tz0, z1 = tz0 + 0.5;
+    F.col(x0, x1, 0, 3.5, z0, z1 + 0.25); F.box(M.woodGreen, x0, x1, 0, 1.15, z0, z1); F.box(M.woodGreen, x0, x1, 2.85, 3.5, z0, z1);
+    for (const e of [x0, x1]) F.box(M.woodGreen, e - 0.08, e + 0.08, 1.15, 2.85, z0, z1);
+    F.box(M.woodCream, x0 - 0.1, x1 + 0.1, 1.12, 1.2, z0, z1 + 0.28);
+    F.geo(M.woodCream, molding(P.cornice(0.5), x0 - 0.15, x1 + 0.15, 3.35, z1));
+    const ip = new THREE.PlaneGeometry(x1 - x0, 1.7); ip.translate(cx, 2.0, z0 + 0.05); F.geo(M.interior, ip, 'keep');
+    const gr = []; for (let k = -4; k <= 4; k++) { const b = new THREE.CylinderGeometry(0.014, 0.014, 1.65, 6); b.translate(cx + k * 0.2, 2.02, z1 - 0.1); gr.push(b); } F.geo(M.brass, merge(gr));
+    const tk = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.42), new THREE.MeshStandardMaterial({ map: paintedSign('TICKETS', { bg: '#4a1512', fg: '#d9b45c', w: 1024, h: 256 }), roughness: 0.8 }));
+    tk.position.copy(F.point(cx, 3.15, z1 + 0.02)); tk.rotation.y = F.rotY; scene.add(tk);
+  }
+  // ---- the great marquee over the gate, its east end torn from its rods and sagging
+  const mx0 = -7.2, mx1 = 7.2, my0 = 6.0, my1 = 7.7, mz0 = tz0, mz1 = tz0 + 3.6, brk = 2.6;
+  const R = new Frame(B, 0, 0, 0); R.rotY = F.rotY;
+  R.m = F.m.clone().multiply(new THREE.Matrix4().makeTranslation(brk, my1, mz0)).multiply(new THREE.Matrix4().makeRotationZ(-0.2)).multiply(new THREE.Matrix4().makeRotationX(0.06)).multiply(new THREE.Matrix4().makeTranslation(-brk, -my1, -mz0));
+  const text = 'THE PALACE OF HOURS', board = (() => { // milk-glass letter board, letters gone, panels smashed
+    const c = document.createElement('canvas'); c.width = 2048; c.height = 220; const g = c.getContext('2d');
+    g.fillStyle = '#b7ad96'; g.fillRect(0, 0, 2048, 220);
+    for (let x = 0; x < 2048; x += 128) { g.fillStyle = rr() < 0.14 ? '#120f0c' : `rgba(60,50,40,${rr() * 0.25})`; g.fillRect(x + 3, 6, 122, 208); }
+    g.fillStyle = '#16120e'; g.font = '700 150px "Playfair Display", "Times New Roman", serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const chars = [...text]; const w = 2048 / (chars.length + 1);
+    chars.forEach((ch, i) => { if ([5, 12, 16].includes(i)) return; g.save(); g.translate(w * (i + 1), 116); g.rotate((rr() - 0.5) * (i % 4 === 0 ? 0.5 : 0.08)); g.fillText(ch, 0, 0); g.restore(); });
+    for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(40,30,20,${rr() * 0.2})`; g.fillRect(rr() * 2048, rr() * 220, 3 + rr() * 40, 2 + rr() * 10); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; })();
+  const boardMat = new THREE.MeshStandardMaterial({ map: board, roughness: 0.4, emissive: '#ffd9a0', emissiveMap: board, emissiveIntensity: 0.06 });
+  for (const [Fr, a, b] of [[F, mx0, brk], [R, brk, mx1]]) {
+    Fr.box(M.woodRed, a, b, my0, my1, mz0, mz1);
+    Fr.box(M.woodCream, a, b, my1, my1 + 0.25, mz0, mz1 + 0.15);
+    Fr.geo(M.woodCream, molding(P.cornice(0.45), a, b, my1 - 0.05, mz1));
+    Fr.box(M.gold, a, b, my0 - 0.12, my0, mz0, mz1 + 0.05);
+    const pl = new THREE.PlaneGeometry(b - a - 0.3, my1 - my0 - 0.35), uv = pl.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, ((a + 0.15) + uv.getX(i) * (b - a - 0.3) - mx0) / (mx1 - mx0));
+    pl.translate((a + b) / 2, (my0 + my1) / 2, mz1 + 0.02); pl.applyMatrix4(Fr.m); scene.add(new THREE.Mesh(pl, boardMat));
+    bulbRow(ctx, Fr, a + 0.15, my1 + 0.05, mz1 + 0.12, b - 0.15, my1 + 0.05, mz1 + 0.12, 0.3, 0.07, a > 0 ? 3 : 4);
+    bulbRow(ctx, Fr, a + 0.15, my0 + 0.08, mz1 + 0.12, b - 0.15, my0 + 0.08, mz1 + 0.12, 0.3, 0.07, a > 0 ? 5 : 6);
+    for (let z = mz0 + 0.5; z < mz1; z += 0.6) bulbRow(ctx, Fr, a + 0.3, my0 - 0.18, z, b - 0.3, my0 - 0.18, z, 0.6, 0.04, Math.round(z * 10) + (a > 0 ? 50 : 0));
+  }
+  // tie rods up to the tower; the east pair snapped, one hanging loose
+  const rods = []; for (const x of [-6.4, -1.2]) { const g = new THREE.CylinderGeometry(0.04, 0.04, 4.2, 6); g.rotateX(-0.95); g.translate(x, my1 + 1.75, mz0 + 1.6); rods.push(g); }
+  F.geo(M.iron, merge(rods));
+  const loose = new THREE.CylinderGeometry(0.04, 0.04, 2.6, 6); loose.rotateX(0.25); loose.translate(5.6, my1 + 2.0, mz0 + 0.5); F.geo(M.iron, loose);
 }

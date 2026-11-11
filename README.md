@@ -4,43 +4,53 @@ A horde shooter in the browser, set in Ashland: a grand amusement park that clos
 opened again. Built on three.js and WebGL shaders.
 
 ASHLAND is a **setting reskin of [Hordefall](https://github.com/madhatter2727/hordefall)**. The guns, movement,
-perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchanged. The world is new.
+perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchanged, except that mouse look is about 1.6x faster. The world is new.
 
 **Play:** https://ashland-lac.vercel.app
 
 ![The Midway, with the coaster skeleton behind it](docs/midway.jpg)
 
 ## The park
-- **The Esplanade** (south): the Ticket Palace straddles the main gate. It has paired Corinthian columns, the
-  ASHLAND name in flaking gilt, an iron sunburst in the great arch, and ticket windows behind brass grilles.
-  Four shuttered grand hotels in dark red brick stand either side, with iron balconies, glass marquises and
-  slate mansards.
-- **The Palace of Hours** (north): a long clock palace with copper roofs gone green, an urn parapet, a gate
-  tower whose dials stopped at 11:47, an open belfry and bronze statues on plinths.
-- **The Gardens** (west): an iron-and-glass orangery with domes, a dry reflecting pool with a horse fountain,
-  overgrown hedges and dead trees.
-- **The Midway** (east): boarded game halls under an iron colonnade, a gilded carousel standing still under a
-  torn velvet canopy, and the steel skeleton of the great coaster rising over the wall. The coaster is
-  scenery only for now.
-- **The centre**: a marble bandstand terrace, a stone viaduct with one span collapsed, game stalls, iron gas
-  lamps, braziers and puddles on dark wet paving.
+- **The main gate** (south): a classic park entrance. Two painted timber pylons carry faded attraction bills
+  under glass, a RIDES / AMUSEMENTS band and copper cupolas with gold globes. An iron arch spells ASHLAND in
+  bulb letters, most of them dead. Octagonal ticket booths stand either side, with a row of rusted turnstiles
+  behind.
+- **The boardwalk hotels** either side of the gate: Hotel Meridian, The Carlisle, Hotel Vesper and The
+  Belvedere. They are painted clapboard in oxblood, forest green and cream, with deep porches, turned posts
+  and fretwork, plywooded windows, slate mansards, and painted name boards. Hotel Vesper has a dead neon
+  sign and VACANCY on an iron lattice.
+- **The Palace of Hours** (north): the park's great dark ride. The show halls are brick and wood, with
+  boarded arcades, poster cases, faded murals and stepped false fronts with painted attraction boards. Over
+  the gate, the clock tower (stopped at 11:47) carries a huge broken marquee whose east end has torn loose
+  and sags. There are ticket windows in the tower piers and ticket kiosks out front.
+- **The Midway** (east): game halls under an iron colonnade, a row of painted game booths (counters, prize
+  shelves, awnings with scalloped valances, crest boards and dead bulbs), and a gilded carousel standing
+  still under a torn velvet canopy. The steel skeleton of the great coaster rises over the wall. The coaster
+  is scenery only.
+- **The Grand Wheel** (west skyline): a 44 m riveted Ferris wheel, stopped. Some cars are missing, and one
+  lies in the weeds.
+- **The Gardens** (west): an iron-and-glass orangery, a dry reflecting pool with a dark bronze horse, overgrown
+  hedges and dead trees.
+- **The centre**: a marble bandstand terrace, iron queue rails, iron gas lamps, braziers, and puddles on dark
+  wet paving.
 - **Locked areas** (buy with F): **The Clock Terrace** (a stone terrace before the Palace, up a stair behind a
   chained iron gate) and **The Grotto** (the old rock-cut boat-ride hall behind an iron-banded shutter).
 
 | | |
 |---|---|
-| ![Ticket Palace](docs/ticket-palace.jpg) | ![Palace of Hours](docs/palace.jpg) |
-| ![Gardens](docs/gardens.jpg) | ![Esplanade](docs/esplanade.jpg) |
+| ![Main gate](docs/gate.jpg) | ![Palace of Hours](docs/palace.jpg) |
+| ![Hotel Vesper](docs/hotel.jpg) | ![Game booths](docs/booths.jpg) |
 
 ## How it looks the way it does
 - All surfaces use Poly Haven CC0 PBR texture sets (albedo, normal, AO/roughness/metal) for herringbone paving,
-  marble, sandstone, red brick, slate, verdigris copper, rusted iron, peeling paint and velvet. They are
+  marble, sandstone, red brick, slate, painted clapboard, plywood, peeling murals, verdigris copper, rusted
+  iron and velvet. They are
   box-projected in world space, so texel density stays the same on every piece.
 - The architecture is procedural and modelled, not boxes: lathed columns with fluting, entasis and capitals,
   extruded cornices and string courses, arches with keystones, pediments, balustrades, mansards with
   dormers, domes with ribs and lanterns, and iron railings. Static pieces are merged per material.
 - Real CC0 models: iron gates, statues, lion heads, lanterns, a chandelier, urns, benches, shrubs, weeds,
-  ferns and mossy rocks.
+  ferns and mossy rocks. The heaviest models are decimated so the game stays smooth on laptop GPUs.
 - One shared weather shader adds grime and damp rising from the ground, rain streaks under ledges, moss on
   upward-facing stone, wet sheen, gold leaf flaking off the gilding, and puddles with animated rain ripples.
 - Lighting is an overcast dusk HDRI (kloppenheim_01_puresky) for image-based lighting and reflections, a
