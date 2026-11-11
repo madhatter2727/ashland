@@ -4,42 +4,40 @@ A horde shooter in the browser, set in Ashland: a grand amusement park that clos
 opened again. Built on three.js and WebGL shaders.
 
 ASHLAND is a **setting reskin of [Hordefall](https://github.com/madhatter2727/hordefall)**. The guns, movement,
-perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchanged, except that mouse look is about 1.6x faster. The world is new.
+perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchanged, except that mouse look is about 2x faster. The world is new.
 
 **Play:** https://ashland-lac.vercel.app
 
-![The Midway, with the coaster skeleton behind it](docs/midway.jpg)
+![Park street, with the Palace of Hours and the drop tower behind it](docs/street.jpg)
 
 ## The park
-- **The main gate** (south): a classic park entrance. Two painted timber pylons carry faded attraction bills
-  under glass, a RIDES / AMUSEMENTS band and copper cupolas with gold globes. An iron arch spells ASHLAND in
-  bulb letters, most of them dead. Octagonal ticket booths stand either side, with a row of rusted turnstiles
-  behind.
-- **The boardwalk hotels** either side of the gate: Hotel Meridian, The Carlisle, Hotel Vesper and The
-  Belvedere. They are painted clapboard in oxblood, forest green and cream, with deep porches, turned posts
-  and fretwork, plywooded windows, slate mansards, and painted name boards. Hotel Vesper has a dead neon
-  sign and VACANCY on an iron lattice.
-- **The Palace of Hours** (north): the park's great dark ride. The show halls are brick and wood, with
-  boarded arcades, poster cases, faded murals and stepped false fronts with painted attraction boards. Over
-  the gate, the clock tower (stopped at 11:47) carries a huge broken marquee whose east end has torn loose
-  and sags. There are ticket windows in the tower piers and ticket kiosks out front.
-- **The Midway** (east): game halls under an iron colonnade, a row of painted game booths (counters, prize
-  shelves, awnings with scalloped valances, crest boards and dead bulbs), and a gilded carousel standing
-  still under a torn velvet canopy. The steel skeleton of the great coaster rises over the wall. The coaster
-  is scenery only.
-- **The Grand Wheel** (west skyline): a 44 m riveted Ferris wheel, stopped. Some cars are missing, and one
-  lies in the weeds.
-- **The Gardens** (west): an iron-and-glass orangery, a dry reflecting pool with a dark bronze horse, overgrown
-  hedges and dead trees.
-- **The centre**: a marble bandstand terrace, iron queue rails, iron gas lamps, braziers, and puddles on dark
-  wet paving.
+- **The main gate and park street** (south): two painted timber pylons with RIDES and AMUSEMENTS bands carry
+  an iron arch that spells ASHLAND in bulb letters, most of them dead. There are ticket booths and rusted
+  turnstiles. Inside the gate, torn park banners hang from iron poles along a street of old boardwalk lodges.
+  The lodges are clapboard in chalky yellow, oxidized teal, carnival red and cream, with steep shingle
+  gables, deep porches, and shops on the ground floors: Souvenirs, Salt Water Taffy, Photographs and a Penny
+  Arcade. Hotel Vesper still has its dead neon sign.
+- **The Palace of Hours** (north): the park's great dark ride, a crumbling attraction castle. Lopsided
+  turrets with flared shingle cones (one roof stove in) rise over a crenellated curtain wall hung with torn
+  show banners. The clock keep is stopped at 11:47, a cogwheel arch frames the entrance, and a huge broken
+  marquee hangs over it.
+- **The hub** (centre): open paving around the old bandstand, a faded park guide map, abandoned popcorn
+  carts, and finger posts pointing to the rides and games.
+- **The Midway** (east): game halls under an iron colonnade, painted game booths with lit prize shelves,
+  scrolled crest boards and dead bulbs, and a gilded carousel standing still. The great coaster rises over
+  the wall.
+- **The Gardens and the flume** (west): an iron-and-glass orangery, and the dry splash pool of the old flume
+  ride with a boat stranded in it under the broken trough.
+- **On the skyline**, all scenery only: the Iron Comet coaster, the Grand Wheel (a stopped 44 m Ferris wheel),
+  the Plummet (a 58 m drop tower with its seats stuck high), and the Sky Swings (a wave swinger jammed at a
+  tilt).
 - **Locked areas** (buy with F): **The Clock Terrace** (a stone terrace before the Palace, up a stair behind a
   chained iron gate) and **The Grotto** (the old rock-cut boat-ride hall behind an iron-banded shutter).
 
 | | |
 |---|---|
-| ![Main gate](docs/gate.jpg) | ![Palace of Hours](docs/palace.jpg) |
-| ![Hotel Vesper](docs/hotel.jpg) | ![Game booths](docs/booths.jpg) |
+| ![Main gate and park street](docs/gate.jpg) | ![The Palace of Hours](docs/palace.jpg) |
+| ![The hub](docs/hub.jpg) | ![Boardwalk lodges](docs/hotel.jpg) |
 
 ## How it looks the way it does
 - All surfaces use Poly Haven CC0 PBR texture sets (albedo, normal, AO/roughness/metal) for herringbone paving,

@@ -132,7 +132,7 @@ export function buildSkyline(scene, M) {
     const cr = lathe([[2.6, 0], [2.8, 0.4], [2.2, 1.6], [2.4, 2.0], [0.4, 3.6], [0.1, 6], [0, 6]], 16); cr.translate(cx, H, cz); crown.push(cr);
     tris += add(legs, coasterRed); tris += add(brace, bentMat); tris += add(ring, M.steel); tris += add(seats, coasterRed); tris += add(crown, M.gold); }
   // SKY SWINGS, west beyond the Gardens: a wave swinger, its painted canopy tilted and jammed, chains slack
-  { const cx = -54, cz = 26, mastH = 14, R = 8.2, mast = [], canopy = [], chains = [], seats = [], trim = [];
+  { const cx = -52, cz = 24, mastH = 21, R = 8.2, mast = [], canopy = [], chains = [], seats = [], trim = [];
     const m0 = lathe([[1.6, 0], [1.4, 0.6], [0.8, 1.2], [0.7, mastH], [0, mastH]], 16); m0.translate(cx, 0, cz); mast.push(m0);
     const dk = new THREE.CylinderGeometry(7.4, 7.6, 0.6, 32); dk.translate(cx, 0.3, cz); mast.push(dk);
     const tilt = new THREE.Matrix4().makeTranslation(cx, mastH, cz).multiply(new THREE.Matrix4().makeRotationX(0.16)).multiply(new THREE.Matrix4().makeRotationZ(-0.1));
@@ -141,9 +141,9 @@ export function buildSkyline(scene, M) {
     const fl = lathe([[0.25, 0], [0.32, 0.3], [0.06, 1.2], [0, 1.3]], 10); fl.translate(0, 4.5, 0); fl.applyMatrix4(tilt); trim.push(fl);
     const N = 24;
     for (let k = 0; k < N; k++) { if (k % 7 === 3) continue; const a = (k / N) * Math.PI * 2, top = new THREE.Vector3(Math.cos(a) * (R - 0.4), 0, Math.sin(a) * (R - 0.4)).applyMatrix4(tilt);
-      const L = top.y - 2.1, seat = V2(top.x + Math.cos(a) * 0.3, 2.1, top.z + Math.sin(a) * 0.3);
-      for (const off of [-0.22, 0.22]) { const g = new THREE.CylinderGeometry(0.02, 0.02, L, 4, 1, true); g.translate(0, L / 2, 0); g.translate(top.x + Math.sin(a) * off, 2.1, top.z - Math.cos(a) * off); chains.push(g); }
-      const sb = new THREE.BoxGeometry(0.55, 0.08, 0.5); sb.rotateY(-a); sb.translate(seat.x, 2.05, seat.z); seats.push(sb); const bk = new THREE.BoxGeometry(0.5, 0.55, 0.06); bk.translate(0, 0.27, -0.24); bk.rotateY(-a + Math.PI / 2); bk.translate(seat.x, 2.05, seat.z); seats.push(bk); }
+      const sy = top.y - 6.5, L = top.y - sy, seat = V2(top.x + Math.cos(a) * 0.9, sy, top.z + Math.sin(a) * 0.9);
+      for (const off of [-0.22, 0.22]) { const g = new THREE.CylinderGeometry(0.02, 0.02, L, 4, 1, true); g.translate(0, L / 2, 0); g.rotateZ(Math.cos(a) * 0.14); g.rotateX(-Math.sin(a) * 0.14); g.translate(top.x + Math.sin(a) * off + Math.cos(a) * 0.9, sy, top.z - Math.cos(a) * off + Math.sin(a) * 0.9); chains.push(g); }
+      const sb = new THREE.BoxGeometry(0.55, 0.08, 0.5); sb.rotateY(-a); sb.translate(seat.x, sy - 0.05, seat.z); seats.push(sb); const bk = new THREE.BoxGeometry(0.5, 0.55, 0.06); bk.translate(0, 0.27, -0.24); bk.rotateY(-a + Math.PI / 2); bk.translate(seat.x, sy - 0.05, seat.z); seats.push(bk); }
     { const sb = new THREE.BoxGeometry(0.55, 0.08, 0.5); sb.rotateZ(1.2); sb.translate(cx + 6.5, 0.3, cz + 5); seats.push(sb); }
     tris += add(mast, M.copper); tris += add(canopy, M.woodYellow); tris += add(trim, M.woodRed); tris += add(chains, M.steel); tris += add(seats, M.coasterRed); }
 
@@ -153,7 +153,7 @@ export function buildSkyline(scene, M) {
     const a = rnd() * Math.PI * 2, d = 58 + rnd() * 50, x = Math.cos(a) * d, z = Math.sin(a) * d;
     if (x > 50 && z < 60 && z > -75) continue; // keep the coaster clear
     if (Math.hypot(x + 64, z + 14) < 18) continue; // and the wheel
-    if (Math.hypot(x + 24, z + 66) < 9 || Math.hypot(x + 54, z - 26) < 13) continue; // and the drop tower, the swings
+    if (Math.hypot(x + 24, z + 66) < 9 || Math.hypot(x + 52, z - 24) < 13) continue; // and the drop tower, the swings
     const t = deadTree(mulberry(i * 37 + 5), { h: 10 + rnd() * 9, r: 0.35 + rnd() * 0.2, depth: d > 85 ? 2 : 3 }); t.translate(x, 0, z); trees.push(t);
   }
   tris += add(trees, M.bark);
