@@ -49,7 +49,8 @@ export class Drinks {
     const chrome = new THREE.MeshStandardMaterial({ color: '#a78445', roughness: 0.3, metalness: 1 });
     DRINKS.list.forEach((d, i) => {
       const col = new THREE.Color(d.color);
-      const paint = new THREE.MeshStandardMaterial({ color: col.clone().multiplyScalar(0.55), roughness: 0.35, metalness: 0.35 });
+      // enamel cabinet weathered dark (its colour reads from the glowing trim, not a neon box)
+      const paint = new THREE.MeshStandardMaterial({ color: new THREE.Color('#2a2118').lerp(col, 0.05), roughness: 0.55, metalness: 0.45 });
       const glow = new THREE.MeshStandardMaterial({ color: '#000', emissive: col, emissiveIntensity: 1.5 });
       const g = new THREE.Group(); g.position.set(d.x, d.y || 0, d.z); g.rotation.y = d.ry;
       const W = 1.0, D = 0.8, H = 1.95;
@@ -57,7 +58,7 @@ export class Drinks {
       const body = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), paint); body.position.y = H / 2 + 0.06; body.castShadow = body.receiveShadow = true; g.add(body);
       const plinth = new THREE.Mesh(new THREE.BoxGeometry(W + 0.08, 0.08, D + 0.06), metal); plinth.position.y = 0.04; g.add(plinth);
       if (i === 0) { const dome = new THREE.Mesh(new THREE.CylinderGeometry(D / 2, D / 2, W, 24, 1, false, 0, Math.PI), paint); dome.rotation.set(0, 0, Math.PI / 2); dome.position.y = H + 0.06; g.add(dome); }
-      if (i === 1) { const wedge = new THREE.Mesh(new THREE.BoxGeometry(W + 0.02, 0.5, 0.3), paint); wedge.rotation.x = -0.5; wedge.position.set(0, H - 0.1, D / 2 - 0.02); g.add(wedge); for (const sx of [-1, 1]) { const fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, H * 0.9, 0.2), glow); fin.position.set(sx * (W / 2 + 0.02), H / 2, D / 2 - 0.1); g.add(fin); } }
+      if (i === 1) { const wedge = new THREE.Mesh(new THREE.BoxGeometry(W + 0.02, 0.5, 0.3), paint); wedge.rotation.x = -0.5; wedge.position.set(0, H - 0.1, D / 2 - 0.02); g.add(wedge); for (const sx of [-1, 1]) { const fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, H * 0.9, 0.2), chrome); fin.position.set(sx * (W / 2 + 0.02), H / 2, D / 2 - 0.1); g.add(fin); } }
       if (i === 2) { for (const sx of [-1, 1]) { const colm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, H + 0.25, 16), chrome); colm.position.set(sx * (W / 2 + 0.08), (H + 0.25) / 2, D / 2 - 0.15); g.add(colm); const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 10), glow); bulb.position.set(sx * (W / 2 + 0.08), H + 0.33, D / 2 - 0.15); g.add(bulb); } }
       if (i === 3) { const crown = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.42, 4), paint); crown.rotation.y = Math.PI / 4; crown.position.y = H + 0.27; g.add(crown); const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), glow); orb.position.y = H + 0.55; g.add(orb); for (const sx of [-1, 1]) { const curl = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.025, 8, 18, Math.PI * 1.5), chrome); curl.position.set(sx * 0.52, 0.5, D / 2); g.add(curl); } }
       // lit sign up top, glass window with drinks stacked behind it, coin slot, dispenser flap
