@@ -66,8 +66,8 @@ export function posterCase(F, M, scene, x, y, z, i, seed, w = 1.25) {
 }
 
 // ---------------------------------------------------------------- bulbs
-// The park is open: most marquee bulbs burn. Every lit chance is raised to at least this.
-export const BULBS = { minLit: 0.82 };
+// Years on, about half the marquee bulbs still burn. Every lit chance is raised to at least this.
+export const BULBS = { minLit: 0.45 };
 // ctx.bulbs = [{ p: Vector3, lit }]; flushBulbs draws them as two instanced meshes
 export function flushBulbs(scene, M, bulbs, r = 0.055) {
   const geo = new THREE.SphereGeometry(r, 8, 6), sock = new THREE.CylinderGeometry(r * 0.75, r * 0.8, r * 1.2, 8);

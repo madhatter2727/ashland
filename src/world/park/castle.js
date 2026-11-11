@@ -64,7 +64,8 @@ export function spireTower(ctx, F, x, z, { r = 2, y0 = 0, h = 14, roofH = r * 4.
   const xf = new THREE.Matrix4().makeTranslation(x, y0, z);
   const put = (mat, list, uv) => { if (!list.length) return; const g = merge(list); g.applyMatrix4(xf); F.geo(mat, g, uv); };
   put(wall, S.wall); put(M.castleTrim, S.trim); put(roof, S.roof); put(M.gold, S.gold); put(G, S.glass, 'keep'); put(M.gold, S.bars);
-  if (ctx.festive) ctx.festive.pennant(F.point(x, y0 + ft + 2.1, z), PALETTE.flags[flag % PALETTE.flags.length], { len: 1.8 + r * 0.7, width: 0.55 + r * 0.18, phase: x * 0.7 });
+  const ps = ['fly', 'droop', 'fly', 'torn'][Math.abs(Math.round(x * 3 + z * 5 + h)) % 4];
+  if (ctx.festive) ctx.festive.pennant(F.point(x, y0 + ft + 2.1, z), PALETTE.flags[flag % PALETTE.flags.length], { len: 1.8 + r * 0.7, width: 0.55 + r * 0.18, phase: x * 0.7, state: ps });
   return y0 + ft + 2.25;
 }
 // a bartizan: a little turret corbelled out from a wall corner, no base
@@ -107,16 +108,16 @@ export function buildCastle(ctx) {
     F.col(xa, xb, 0, 17, -8, 0, { surface: 'concrete' });
     F.box(M.castleTrim, xa, xb, 0, 0.9, -0.6, 0.12);
     F.geo(M.castleTrim, molding(P.plinth(1.0), xa, xb, 0, 0.12));
-    const g0 = storey(F, M, rr, xa, xb, { y0: 0.9, y1: 6.0, bay: 4.2, mat: wall, thick: 0.5, win: { w: 1.7, sill: 0.7, spring: 3.4 }, surround: M.castleTrim, sill: M.castleTrim, keystone: M.castleTrim, fills: ['glass'], frame: M.gold, course: { mat: M.castleTrim, profile: P.string(1.5) } });
-    storey(F, M, rr, xa, xb, { y0: 6.0, y1: 10.6, bay: 4.2, mat: wall, thick: 0.5, win: { w: 1.25, sill: 0.9, spring: 2.9 }, surround: M.castleTrim, sill: M.castleTrim, fills: ['glass'], frame: M.gold });
+    const g0 = storey(F, M, rr, xa, xb, { y0: 0.9, y1: 6.0, bay: 4.2, mat: wall, thick: 0.5, win: { w: 1.7, sill: 0.7, spring: 3.4 }, surround: M.castleTrim, sill: M.castleTrim, keystone: M.castleTrim, fills: ['glass', 'glass', 'glass', 'broken', 'plywood'], frame: M.gold, course: { mat: M.castleTrim, profile: P.string(1.5) } });
+    storey(F, M, rr, xa, xb, { y0: 6.0, y1: 10.6, bay: 4.2, mat: wall, thick: 0.5, win: { w: 1.25, sill: 0.9, spring: 2.9 }, surround: M.castleTrim, sill: M.castleTrim, fills: ['glass', 'glass', 'broken', 'glass', 'shutter'], shutterMat: M.woodTeal, frame: M.gold });
     // crown: corbel table, coping, clean merlons
     corbels(F, M.castleTrim, xa, xb, 10.6, 0.02, { step: 0.9, d: 0.45 });
     F.box(M.castleTrim, xa, xb, 10.6, 11.3, -0.9, 0.45);
     crenels(F, M.castleTrim, xa + 0.3, xb - 0.3, 11.3, 0.05, 0.45);
     // heraldic banners on every other pier of the upper storey
-    for (let i = 1; i < g0.n; i += 2) { const bc = bannerCols[(i + (side > 0 ? 1 : 0)) % bannerCols.length]; fest.banner(F.point(xa + g0.bw * i, 10.2, 0.0), new THREE.Vector3(0, 0, 1), bc[0], bc[1], { w: 1.25, h: 3.7 }); }
+    for (let i = 1; i < g0.n; i += 2) { const bc = bannerCols[(i + (side > 0 ? 1 : 0)) % bannerCols.length]; fest.banner(F.point(xa + g0.bw * i, 10.2, 0.0), new THREE.Vector3(0, 0, 1), bc[0], bc[1], { w: 1.25, h: 3.7, torn: (i + side) % 3 === 0 }); }
     // bunting along the battlements in short swags
-    for (let x = xa + 0.6; x < xb - 4; x += 4.2) fest.bunting(F.point(x, 11.1, 0.5), F.point(x + 4.2, 11.1, 0.5), { sag: 0.7, size: 0.42, seed: Math.round(x) });
+    for (let x = xa + 0.6, k = 0; x < xb - 4; x += 4.2, k++) { if (k % 4 === 2) continue; fest.bunting(F.point(x, 11.1, 0.5), F.point(x + 4.2, 11.1, 0.5), { sag: 0.7, size: 0.42, seed: Math.round(Math.abs(x)) + 1, broken: k % 5 === 3 }); }
     // the long hall behind the wall: cream stucco, steep tile roof, dormers
     const hx0 = xa + 1.5, hx1 = xb - 1.5, roofM = side < 0 ? M.roofBlue : M.roofBlue;
     F.box(M.stuccoCream, hx0, hx1, 10.6, 14.2, -7.4, -1.4);
@@ -129,6 +130,13 @@ export function buildCastle(ctx) {
       const s = new THREE.Shape(); s.moveTo(-1.05, 0); s.lineTo(0, 1.25); s.lineTo(1.05, 0); s.lineTo(1.05, -0.15); s.lineTo(0, 1.05); s.lineTo(-1.05, -0.15); s.closePath();
       const rg = new THREE.ExtrudeGeometry(s, { depth: 2.4, bevelEnabled: false }); rg.translate(x, 16.0, -4.0); F.geo(roofM === M.roofBlue ? M.roofRose : M.roofBlue, rg);
       const t = new THREE.Shape(); t.moveTo(-0.75, 0); t.lineTo(0, 0.95); t.lineTo(0.75, 0); t.closePath(); F.geo(M.stuccoCream, new THREE.ExtrudeGeometry(t, { depth: 0.1, bevelEnabled: false }).translate(x, 16.0, -1.8));
+    }
+    // missing tiles: two holes in the hall roof with the battens showing
+    for (const hx of [hx0 + 6.4, hx1 - 9.6]) {
+      const hole = new THREE.BoxGeometry(1.9, 0.05, 1.5); hole.rotateX(0.855); hole.translate(hx, 16.75, -2.62); F.geo(M.dark, hole);
+      const bat = []; for (let k = -2; k <= 2; k++) { const b = new THREE.BoxGeometry(2.1, 0.07, 0.09); b.rotateX(0.855); b.translate(hx, 16.78 + k * 0.27 * 0.754, -2.62 - k * 0.27 * 0.657); bat.push(b); }
+      F.geo(M.boards, merge(bat));
+      const tiles = []; for (let k = 0; k < 7; k++) { const t = new THREE.BoxGeometry(0.28, 0.04, 0.4); t.rotateY(k * 0.9); t.translate(hx + (k - 3) * 0.5, 11.35, 0.25 + (k % 3) * 0.1); tiles.push(t); } F.geo(roofM, merge(tiles));
     }
     // towers (same spots and collision as before): different heights, roof colours and pennants
     const tw = side < 0 ? [[-38.5, 21, 2.3, M.roofBlue, M.stuccoCream, 0], [-14, 18.5, 1.9, M.roofRose, M.stuccoLilac, 3]] : [[14.5, 25, 2.5, M.roofBlue, M.stuccoCream, 1], [37.5, 19.5, 2.1, M.roofRose, M.stuccoLilac, 4]];
@@ -171,22 +179,22 @@ export function buildCastle(ctx) {
   { const cm = new THREE.MeshStandardMaterial({ map: crestTex(), roughness: 0.45, metalness: 0.1, alphaTest: 0.5, envMapIntensity: 1.2 });
     const crest = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 2.1), cm); crest.position.copy(F.point(0, 8.25, tz0 + 0.26)); crest.rotation.y = F.rotY; scene.add(crest); }
   // stage 2: blush clock stage with corner turrets
-  const t2y0 = 14.1, t2y1 = 21.5, sw = tw - 0.4, bcz = (tz0 + tz1) / 2;
+  const t2y0 = 14.1, t2y1 = 20.6, sw = tw - 0.4, bcz = (tz0 + tz1) / 2;
   F.box(M.stuccoBlush, -sw, sw, t2y0, t2y1, tz1 + 0.4, tz0 - 0.4);
   F.geo(M.castleTrim, molding(P.string(1.2), -sw - 0.05, sw + 0.05, t2y0, tz0 - 0.4));
   corbels(F, M.castleTrim, -sw - 0.35, sw + 0.35, t2y1, tz0 - 0.4, { step: 0.85, d: 0.45 });
   F.box(M.castleTrim, -sw - 0.35, sw + 0.35, t2y1, t2y1 + 0.8, tz1 + 0.05, tz0 - 0.05);
   crenels(F, M.castleTrim, -sw - 0.2, sw + 0.2, t2y1 + 0.8, tz0 - 0.5, tz0 - 0.1);
-  const dialMat = new THREE.MeshStandardMaterial({ map: clockDial({ hours: 4, minutes: 30, clean: true }), roughness: 0.4, metalness: 0, envMapIntensity: 0.9 });
-  { const dial = new THREE.Mesh(new THREE.CircleGeometry(2.3, 64), dialMat); dial.position.copy(F.point(0, 17.9, tz0 - 0.32)); dial.rotation.y = F.rotY; scene.add(dial);
-    const ring = new THREE.TorusGeometry(2.42, 0.16, 8, 64); ring.translate(0, 17.9, tz0 - 0.3); F.geo(M.gold, ring); }
+  const dialMat = new THREE.MeshStandardMaterial({ map: clockDial({ hours: 11, minutes: 47 }), roughness: 0.4, metalness: 0, envMapIntensity: 0.9 });
+  { const dial = new THREE.Mesh(new THREE.CircleGeometry(2.3, 64), dialMat); dial.position.copy(F.point(0, 17.4, tz0 - 0.32)); dial.rotation.y = F.rotY; scene.add(dial);
+    const ring = new THREE.TorusGeometry(2.42, 0.16, 8, 64); ring.translate(0, 17.4, tz0 - 0.3); F.geo(M.gold, ring); }
   for (const sx of [-1, 1]) {
     const W = archWindow(0.9, 2.2); for (const [m, g] of [[M.castleTrim, W.frame], [ctx.castleGlass, W.glass], [M.gold, W.bars]]) { g.translate(sx * 4.1, 16.0, tz0 - 0.38); F.geo(m, g, m === ctx.castleGlass ? 'keep' : 'box'); }
-    spireTower(ctx, F, sx * (sw + 0.15), tz0 - 0.7, { r: 1.3, y0: t2y0 + 2.0, h: 9.5, roofH: 6.6, wall: M.stuccoCream, roof: M.roofRose, wins: 2, flag: sx < 0 ? 3 : 0, base: false });
+    spireTower(ctx, F, sx * (sw + 0.15), tz0 - 0.7, { r: 1.3, y0: t2y0 + 2.0, h: 8.6, roofH: 6.6, wall: M.stuccoCream, roof: M.roofRose, wins: 2, flag: sx < 0 ? 3 : 0, base: false });
     const cone = lathe([[0.05, -2.4], [0.6, -1.5], [1.2, -0.4], [1.3, 0]], 20); cone.translate(sx * (sw + 0.15), t2y0 + 2.0, tz0 - 0.7); F.geo(M.castleTrim, cone);
   }
   // stage 3: the central spire, plus two rear spires to layer the silhouette from the hub
-  spireTower(ctx, F, 0, bcz + 0.4, { r: 3.0, y0: t2y1 + 0.8, h: 6.0, roofH: 13, wall: M.stuccoCream, roof: M.roofBlue, wins: 3, flag: 1, base: false });
+  spireTower(ctx, F, 0, bcz + 0.4, { r: 3.0, y0: t2y1 + 0.8, h: 4.2, roofH: 11.5, wall: M.stuccoCream, roof: M.roofBlue, wins: 3, flag: 1, base: false });
   spireTower(ctx, F, -4.6, tz1 - 1.6, { r: 2.0, y0: 0, h: 24, roofH: 9, wall: M.stuccoLilac, roof: M.roofTeal, wins: 4, flag: 4 });
   spireTower(ctx, F, 5.2, tz1 - 2.6, { r: 1.7, y0: 0, h: 26.5, roofH: 8, wall: M.stuccoCream, roof: M.roofPlum, wins: 4, flag: 2 });
   propAt('lion_head', 0, 9.9, -36 + tz0 + 0.05, 0, 0.9);
@@ -215,7 +223,7 @@ export function buildCastle(ctx) {
   }
   // bunting swags across the gate front between the corner turrets
   fest.bunting(F.point(-6.4, 13.6, 1.3), F.point(0, 13.0, 1.3), { sag: 0.9, size: 0.45, seed: 2 });
-  fest.bunting(F.point(0, 13.0, 1.3), F.point(6.4, 13.6, 1.3), { sag: 0.9, size: 0.45, seed: 5 });
+  fest.bunting(F.point(6.4, 13.6, 1.3), F.point(0, 13.0, 1.3), { sag: 0.9, size: 0.45, seed: 5, broken: true });
   buildFountain(ctx, 0, -30.4);
 }
 
@@ -246,7 +254,7 @@ export function buildFountain(ctx, x, z) {
   B.col(x - 2.55, x + 2.55, 0, 0.72, z - 1.05, z + 1.05); B.col(x - 1.05, x + 1.05, 0, 0.72, z - 2.55, z + 2.55); B.col(x - 1.85, x + 1.85, 0, 0.72, z - 1.85, z + 1.85);
   B.col(x - 0.6, x + 0.6, 0.72, 4.2, z - 0.6, z + 0.6);
   // water: clear turquoise with moving ripples (animated normal), the three pools
-  const wm = new THREE.MeshPhysicalMaterial({ color: '#2f9cbc', roughness: 0.04, metalness: 0, transparent: true, opacity: 0.88, envMapIntensity: 1.3, clearcoat: 1, clearcoatRoughness: 0.02 });
+  const wm = new THREE.MeshPhysicalMaterial({ color: '#3d4a26', roughness: 0.12, metalness: 0, transparent: true, opacity: 0.94, envMapIntensity: 0.9, clearcoat: 0.6, clearcoatRoughness: 0.2 });
   wm.onBeforeCompile = (sh) => {
     sh.uniforms.uT = RAIN.time;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPw;').replace('#include <project_vertex>', '#include <project_vertex>\nvWPw = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -254,21 +262,19 @@ export function buildFountain(ctx, x, z) {
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         { vec2 q = vWPw.xz; float r = length(q - vec2(${x.toFixed(2)}, ${z.toFixed(2)}));
           vec2 dir = normalize(q - vec2(${x.toFixed(2)}, ${z.toFixed(2)}) + 1e-4);
-          float w = sin(r * 9.0 - uT * 5.0) * 0.5 + sin(q.x * 6.3 + uT * 2.1) * 0.25 + sin(q.y * 7.1 - uT * 2.6) * 0.25;
+          float w = (sin(r * 9.0 - uT * 2.0) * 0.5 + sin(q.x * 6.3 + uT * 0.7) * 0.25 + sin(q.y * 7.1 - uT * 0.9) * 0.25) * 0.25;
           vec3 pn = normalize(vec3(dir.x * w * 0.18 + cos(q.x * 6.3 + uT * 2.1) * 0.05, 1.0, dir.y * w * 0.18 + cos(q.y * 7.1 - uT * 2.6) * 0.05));
           normal = normalize((viewMatrix * vec4(pn, 0.0)).xyz); }`);
   };
   wm.customProgramCacheKey = () => 'ash-fountain-water';
-  for (const [r, y] of [[2.22, 0.56], [1.38, 1.98], [0.8, 3.42]]) { const g = new THREE.CircleGeometry(r, 40); g.rotateX(-Math.PI / 2); g.translate(x, y, z); const m = new THREE.Mesh(g, wm); m.receiveShadow = true; scene.add(m); }
+  // the basin is low and green with algae, the first bowl holds a scum of rainwater, the top bowl is dry
+  for (const [r, y] of [[2.21, 0.36], [1.3, 1.9]]) { const g = new THREE.CircleGeometry(r, 40); g.rotateX(-Math.PI / 2); g.translate(x, y, z); const m = new THREE.Mesh(g, wm); m.receiveShadow = true; scene.add(m); }
   // falling water: veils off each bowl lip and a crown jet, scrolling streak texture
-  const tex = fallTexture(); tex.repeat.set(10, 1.2);
-  const fm = new THREE.MeshStandardMaterial({ color: '#e6f6ff', map: tex, alphaMap: tex, transparent: true, depthWrite: false, roughness: 0.15, side: THREE.DoubleSide, emissive: '#9fd6ea', emissiveIntensity: 0.12 });
-  const veils = [
-    lathe([[1.5, 2.04], [1.62, 1.8], [1.72, 1.2], [1.78, 0.56]], 40),
-    lathe([[0.86, 3.46], [0.95, 3.2], [1.02, 2.6], [1.06, 2.0]], 32),
-    lathe([[0.05, 4.1], [0.04, 4.9], [0.16, 5.08], [0.36, 4.92], [0.56, 4.4], [0.7, 3.5]], 24),
-  ];
+  const tex = fallTexture(); tex.repeat.set(4, 1.2);
+  const fm = new THREE.MeshStandardMaterial({ color: '#c8d4c0', map: tex, alphaMap: tex, transparent: true, opacity: 0.45, depthWrite: false, roughness: 0.3, side: THREE.DoubleSide });
+  // only a trickle is left: a thin spill off one side of the first bowl
+  const veils = [lathe([[1.5, 2.04], [1.62, 1.8], [1.72, 1.2], [1.78, 0.38]], 10, 0.9).rotateY(2.2)];
   for (const v of veils) { v.translate(x, 0, z); const m = new THREE.Mesh(v, fm); m.renderOrder = 2; scene.add(m); }
-  ctx.anim.push((dt) => { tex.offset.y += dt * 1.6; });
+  ctx.anim.push((dt) => { tex.offset.y += dt * 0.9; });
   ctx.fountainTris = veils.reduce((a, v) => a + v.index.count / 3, 0);
 }

@@ -15,6 +15,7 @@ import { buildMidway, buildCarousel, stall } from './park/midway.js';
 import { buildGardens } from './park/gardens.js';
 import { flushBulbs } from './park/showfront.js';
 import { parkMap, popcornCart, fingerPost } from './park/themed.js';
+import { buildDecay } from './park/decay.js';
 
 export const ARENA = { half: 36, cell: 1 };
 export let PARK_MATS = null;
@@ -64,14 +65,14 @@ export function buildArena(scene, quality, A) {
   buildCastle(ctx);
   buildEsplanade(ctx);
   // beyond the north and south gates: walled service courts (where the horde comes from), so the gate
-  // arches frame dark wet brick and a failing lamp instead of empty fog
+  // arches frame the park's own faded stucco (stained, peeling, ivy-grown) and a failing lamp, not fog
   for (const F of [new Frame(B, 0, -36, 0), new Frame(B, 0, 36, Math.PI)]) {
     const z0 = -9.5, z1 = -19;
-    F.box(M.brickDeep, -11, 11, 0, 8.5, z1 - 0.8, z1);
-    for (const s of [-1, 1]) F.box(M.brickDeep, s * 11, s * 11.8, 0, 8.5, z1 - 0.8, z0);
-    F.geo(M.stoneDark, molding(P.cornice(0.6), -11.8, 11.8, 8.5, z1));
-    F.geo(M.stoneDark, molding(P.plinth(0.7), -11, 11, 0, z1));
-    for (const x of [-7, 0, 7]) { F.box(M.stoneDark, x - 1.6, x + 1.6, 0, 4.6, z1 - 0.3, z1 + 0.05); F.box(M.shutter, x - 1.3, x + 1.3, 0.1, 4.0, z1 - 0.2, z1 + 0.1); }
+    F.box(M.stuccoCream, -11, 11, 0, 8.5, z1 - 0.8, z1);
+    for (const s of [-1, 1]) F.box(M.stuccoCream, s * 11, s * 11.8, 0, 8.5, z1 - 0.8, z0);
+    F.geo(M.castleTrim, molding(P.cornice(0.6), -11.8, 11.8, 8.5, z1));
+    F.geo(M.castleTrim, molding(P.plinth(0.7), -11, 11, 0, z1));
+    for (const x of [-7, 0, 7]) { F.box(M.castleTrim, x - 1.6, x + 1.6, 0, 4.6, z1 - 0.3, z1 + 0.05); F.box(M.shutter, x - 1.3, x + 1.3, 0.1, 4.0, z1 - 0.2, z1 + 0.1); }
     const lp = F.point(-3.5, 0, z1 + 0.6); propAt('street_lamp_02', lp.x, 0, lp.z, F.rotY, 4.6);
   }
   buildMidway(ctx);
@@ -117,7 +118,7 @@ export function buildArena(scene, quality, A) {
   };
   stairs(0, -4.5, 0, -1, 3, PH, 8); stairs(0, 4.5, 0, 1, 3, PH, 8);
   // the bandstand: eight fluted iron columns, a copper tent roof with a lace valance and gilt finial
-  { const cr = 4.25, ch = 7.0, oct = []; // tall slender columns: the roof stays out of the opening view of the castle
+  { const cr = 4.25, ch = 8.0, oct = []; // tall slender columns: the roof stays out of the opening view of the castle
     for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; oct.push([Math.cos(a) * cr * 1.08, Math.sin(a) * cr * 0.98]); }
     for (const [x, z] of oct) { const c = column(ch, 0.14, { flutes: 8, seg: 16, capital: 'corinthian' }); c.translate(x, PH, z); B.add(M.marbleTrim, c); B.col(x - 0.15, x + 0.15, PH, PH + ch, z - 0.15, z + 0.15, { surface: 'metal' }); }
     const roofY = PH + ch;
@@ -133,10 +134,10 @@ export function buildArena(scene, quality, A) {
     const L = new THREE.PointLight('#ffb36a', 9, 13, 1.7); L.position.set(0, roofY + 1.45, 0); scene.add(L); lights.push({ light: L, base: 9, flicker: 0.12 });
   }
 
-  { const eave = (a) => new THREE.Vector3(Math.cos(a) * 4.25 * 1.27, PH + 7.0 + 0.05, Math.sin(a) * 4.25 * 1.17);
+  { const eave = (a) => new THREE.Vector3(Math.cos(a) * 4.25 * 1.27, PH + 8.0 + 0.05, Math.sin(a) * 4.25 * 1.17);
     for (const [x, z, k] of [[-9, 6, 0], [10, -5, 1], [-9, -12.5, 2], [9, 12.6, 3], [-6, 12, 4], [6, -12, 5]]) {
       const a = Math.atan2(z, x), p0 = eave(a), p1 = new THREE.Vector3(x, 4.3, z);
-      festive.bunting(p0, p1, { sag: 0.8, size: 0.46, seed: k * 2 });
+      festive.bunting(k === 1 || k === 4 ? p1 : p0, k === 1 || k === 4 ? p0 : p1, { sag: 0.8, size: 0.46, seed: k * 2, broken: k === 1 || k === 4 });
     } }
   // ---------- boarded game stalls (old container footprints: cover + the climbable stack) ----------
   const stalls = [[-16, -8, 0, 0, 0, -1], [-16, -5.4, 0, 1, 0, 1], [-16, -8, 0, 2, 2.6, -1], [-12, 15, 0, 3, 0, 1], [20, -15, 1, 4, 0, 1], [8, -20, 0, 5, 0, -1], [-24, 22, 1, 6, 0, -1], [24, 24, 0, 7, 0, -1]];
@@ -145,14 +146,15 @@ export function buildArena(scene, quality, A) {
   buildCarousel(ctx, 15.7, 9);
   // the park hub: a faded park guide by the way in, popcorn carts left where they stood, finger posts to the rides
   parkMap(ctx, -9, 18, 0.35);
-  popcornCart(ctx, -6, 13.5, 0.4, 1); popcornCart(ctx, 12, -4, -1.2, 2); popcornCart(ctx, -8, -14, 2.0, 3);
+  popcornCart(ctx, -6, 13.5, 0.4, 1); popcornCart(ctx, 12, -4, -1.2, 2); popcornCart(ctx, -8, -14, 2.0, 3, { tipped: true });
   const toward = (x, z, tx, tz) => Math.atan2(-(tz - z), tx - x);
   fingerPost(ctx, -2, 12, [['ASHLAND CASTLE', toward(-2, 12, 0, -36), '#2f63c4'], ['MIDWAY  ·  GAMES', toward(-2, 12, 30, 0), '#2f8a78'], ['THE GRAND WHEEL', toward(-2, 12, -64, -14), '#8a6a1c']]);
   fingerPost(ctx, -14, 0, [['SPLASH FLUME', toward(-14, 0, -29, 0), '#1f5b57'], ['IRON COMET', toward(-14, 0, 70, 0), '#5a1a14'], ['MAIN GATE', toward(-14, 0, 0, 40), '#3b2f5a']]);
 
 
   // ---------- stone planters gone wild (old jersey-barrier cover) ----------
-  const blooms = [];
+  const blooms = [], tufts = [];
+  const weedIds = ['weed_plant_02#weed_plant_02_a_LOD0', 'weed_plant_02#weed_plant_02_c_LOD0', 'weed_plant_02#weed_plant_02_e_LOD0', 'nettle_plant#nettle_plant_small_a_LOD0', 'nettle_plant#nettle_plant_small_b_LOD0', 'fern_02#fern_02_a', 'fern_02#fern_02_c'];
   const planter = (x, z, rot) => {
     const w = rot ? 0.6 : 3, d = rot ? 3 : 0.6;
     B.col(x - w / 2, x + w / 2, 0, 0.95, z - d / 2, z + d / 2);
@@ -161,8 +163,11 @@ export function buildArena(scene, quality, A) {
     F.geo(M.marbleTrim, moldingRing(P.plinth(0.45), 2.9, 0.54, 0));
     F.geo(M.marbleTrim, moldingRing([[0, 0], [0.05, 0], [0.07, 0.06], [0.07, 0.2], [0, 0.23]], 2.96, 0.6, 0.72));
     F.box(M.mud, -1.38, 1.38, 0.72, 0.9, -0.22, 0.22);
-    for (const k of [-1, 1]) { const p = F.point(k * 0.9, 0.88, 0); propAt('shrub_04', p.x, p.y, p.z, rr() * 6, 0.7 + rr() * 0.3); }
-    for (let k = 0; k < 46; k++) blooms.push(F.point((rr() - 0.5) * 2.7, 0.92 + rr() * 0.22, (rr() - 0.5) * 0.4));
+    // gone wild: a leggy shrub, nettles and weeds, and a few dusty blooms hanging on
+    { const p = F.point((rr() - 0.5) * 1.6, 0.88, 0); propAt('shrub_04', p.x, p.y, p.z, rr() * 6, 0.9 + rr() * 0.4); }
+    for (const k of [-1.05, 0.15, 1.05]) { const p = F.point(k + (rr() - 0.5) * 0.3, 0.88, (rr() - 0.5) * 0.2); propAt(weedIds[Math.floor(rr() * 5)], p.x, p.y, p.z, rr() * 6, 0.45 + rr() * 0.4); }
+    for (let k = 0; k < 14; k++) blooms.push(F.point((rr() - 0.5) * 2.7, 0.92 + rr() * 0.22, (rr() - 0.5) * 0.4));
+    for (const e of [-1, 1]) for (let k = 0; k < 4; k++) { const p = F.point((rr() - 0.5) * 3.1, 0, e * (0.36 + rr() * 0.12)); tufts.push([p.x, p.z, 0.25 + rr() * 0.3]); }
   };
   [[-6, -12, 0], [6, 12, 0], [-9, 9, 1], [10, -8, 1], [-22, 2, 1], [23, -2, 1], [0, -26, 0], [0, 26, 0], [-27, -18, 0], [28, 16, 0], [13, 22, 1], [-10, -22, 1]]
     .forEach(([x, z, rot]) => planter(x, z, rot));
@@ -233,8 +238,7 @@ export function buildArena(scene, quality, A) {
     [[35.0, 29.2], [27.0, 31.2], [29.6, 35.0], [27.1, 35.0], [35.0, 31.6]].forEach(([x, z], i) => propAt(i % 2 ? 'fern_02#fern_02_b' : 'fern_02#fern_02_d', x, 0, z, i * 2.1, 0.7));
     propAt('Chandelier_01', 30.6, 3.88, 31.2, 0.3, 1.1, { hang: true });
     propAt('gothic_statue', -34.6, AREAS.list[0].roofY + 1.2, -34.6, Math.PI * 0.75, 1.7); }
-  const weedIds = ['weed_plant_02#weed_plant_02_a_LOD0', 'weed_plant_02#weed_plant_02_c_LOD0', 'weed_plant_02#weed_plant_02_e_LOD0', 'nettle_plant#nettle_plant_small_a_LOD0', 'nettle_plant#nettle_plant_small_b_LOD0', 'fern_02#fern_02_a', 'fern_02#fern_02_c'];
-  for (let i = 0; i < 50; i += 3) {
+  for (let i = 0; i < 50; i += 2) {
     let x, z; const side = Math.floor(rr() * 4), t = (rr() * 2 - 1) * (H - 3);
     if (i < 50) [x, z] = side === 0 ? [t, -H + 0.5 + rr() * 1.5] : side === 1 ? [t, H - 0.5 - rr() * 1.5] : side === 2 ? [-H + 0.5 + rr() * 1.5, t] : [H - 0.5 - rr() * 1.5, t];
     else { x = (rr() * 2 - 1) * (H - 3); z = (rr() * 2 - 1) * (H - 3); }
@@ -244,8 +248,28 @@ export function buildArena(scene, quality, A) {
   }
   propAt('dead_tree_trunk_02', -27, 0, -21.5, 0.4, 0.75); colliders.push({ minX: -29, maxX: -25, minY: 0, maxY: 0.7, minZ: -22.3, maxZ: -20.7, walk: false, mat: 'wood' });
 
-  // flowers in every planter: one instanced mesh of little blooms in park colours
-  { const pal = ['#e2453c', '#f4c542', '#f5efe2', '#e86aa0', '#9a5fd0', '#ff8a3a'].map((c) => new THREE.Color(c));
+  // ---------- years of neglect: ivy, grass in the cracks, litter, spilled popcorn, a tipped bin and a fallen bench ----------
+  const decayStats = buildDecay(ctx, decayLayout(tufts, rr, inArea, colliders));
+  { // a toppled litter bin, lid rolled off (dressing only, no collision; kept to the edges)
+    for (const [x, z, a] of [[-33.6, 5.2, 0.6], [11.2, 33.3, 2.4], [-20.8, -33.7, -0.9]]) {
+      const bin = lathe([[0.27, 0], [0.29, 0.04], [0.27, 0.08], [0.28, 0.85], [0.31, 0.9], [0.29, 0.94], [0.0, 0.94]], 18); bin.rotateZ(Math.PI / 2); bin.translate(0.47, 0.29, 0); bin.rotateY(a); bin.translate(x, 0, z); B.add(M.ironGreen, bin);
+      const lid = new THREE.CylinderGeometry(0.33, 0.33, 0.05, 18); lid.rotateX(0.12); lid.translate(x + Math.cos(a) * 1.5, 0.03, z - Math.sin(a) * 1.5 + 0.3); B.add(M.ironGreen, lid);
+    }
+    // a bench pitched onto its back by the gardens wall, another on its side by a lodge porch
+    const bench = (x, z, ry, tip) => { // park bench: green slats on cast-iron ends, built upright then tipped
+      const wood = [], iron = [];
+      for (let k = 0; k < 4; k++) wood.push(new THREE.BoxGeometry(1.8, 0.035, 0.09).translate(0, 0.45, -0.17 + k * 0.115));
+      for (let k = 0; k < 3; k++) wood.push(new THREE.BoxGeometry(1.8, 0.09, 0.03).rotateX(-0.25).translate(0, 0.62 + k * 0.13, -0.27 - k * 0.032));
+      for (const e of [-0.8, 0.8]) { iron.push(new THREE.BoxGeometry(0.05, 0.45, 0.05).translate(e, 0.225, 0.15), new THREE.BoxGeometry(0.05, 0.9, 0.05).rotateX(-0.25).translate(e, 0.43, -0.22), new THREE.BoxGeometry(0.05, 0.04, 0.52).translate(e, 0.43, -0.04)); }
+      const T = new THREE.Matrix4().makeRotationY(ry).premultiply(new THREE.Matrix4().makeTranslation(x, 0, z)).multiply(tip);
+      const gw = merge(wood).applyMatrix4(T), gi = merge(iron).applyMatrix4(T); gw.computeBoundingBox(); gi.computeBoundingBox();
+      const dy = -Math.min(gw.boundingBox.min.y, gi.boundingBox.min.y); gw.translate(0, dy, 0); gi.translate(0, dy, 0); B.add(M.woodGreen, gw); B.add(M.ironGreen, gi);
+    };
+    bench(-33.3, 10.6, Math.PI / 2, new THREE.Matrix4().makeTranslation(0, 0.3, 0).multiply(new THREE.Matrix4().makeRotationX(-1.5)).multiply(new THREE.Matrix4().makeTranslation(0, 0, 0.3)));
+    bench(-13.4, 33.4, 0.1, new THREE.Matrix4().makeTranslation(0, 0.05, 0).multiply(new THREE.Matrix4().makeRotationX(1.45)).multiply(new THREE.Matrix4().makeTranslation(0, 0, -0.18)));
+  }
+  // flowers left in the planters: a few dusty, sun-faded blooms
+  { const pal = ['#b9706a', '#cdb36e', '#ddd6c6', '#bf8a9e', '#8c7a9a', '#c99470'].map((c) => new THREE.Color(c));
     const im = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.075, 0), new THREE.MeshStandardMaterial({ roughness: 0.75 }), blooms.length), mx = new THREE.Matrix4();
     blooms.forEach((p, i) => { const s = 0.8 + rr() * 0.7; im.setMatrixAt(i, mx.compose(p, new THREE.Quaternion(), new THREE.Vector3(s, s * 0.7, s))); im.setColorAt(i, pal[Math.floor(rr() * pal.length)]); });
     im.castShadow = false; im.receiveShadow = true; scene.add(im); }
@@ -285,7 +309,7 @@ export function buildArena(scene, quality, A) {
   // ---------- skyline: the coaster's skeleton, dead woods, far park towers ----------
   const sky = buildSkyline(scene, M);
   const realLights = lights.filter((l) => !l.fake);
-  return { anim: (dt, t) => { for (const f of anim) f(dt, t); }, colliders, spawns, lights: realLights, glows: lights.filter((l) => l.fake), fires, nav: buildNav(colliders), stats: { parkTris: Math.round(B.tris), propTris: Math.round(propTris), facadeTris: Math.round(B.tris), skyline: { buildings: sky.count, tris: sky.tris, drawCalls: sky.drawCalls }, festiveTris: Math.round(festive.tris || 0) } };
+  return { anim: (dt, t) => { for (const f of anim) f(dt, t); }, colliders, spawns, lights: realLights, glows: lights.filter((l) => l.fake), fires, nav: buildNav(colliders), stats: { decayTris: decayStats.tris, decayInstances: decayStats.instances, parkTris: Math.round(B.tris), propTris: Math.round(propTris), facadeTris: Math.round(B.tris), skyline: { buildings: sky.count, tris: sky.tris, drawCalls: sky.drawCalls }, festiveTris: Math.round(festive.tris || 0) } };
 }
 
 // ---------- navigation grid: floor height per cell + blocked cells ----------
@@ -316,4 +340,38 @@ function stripeMat() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.42, metalness: 0.05, envMapIntensity: 1.0 });
   m.userData.density = 1; return m;
+}
+
+// where the neglect shows: ivy up the castle, towers, gate, lodges and service courts; grass along every
+// wall base, kerb and seam; litter blown along Main Street, the hub and the courtyard; popcorn spilled
+// round the carts. All dressing: nothing here collides.
+function decayLayout(tufts, rr, inArea, colliders) {
+  const ivy = [];
+  // castle front (faces +z at z -35.5) and tower faces
+  for (const [x, w, h] of [[-40, 3.2, 8.5], [-31, 2.6, 6.5], [-22, 3.0, 9.5], [-17, 2.2, 5.5], [18, 2.8, 7.5], [24, 3.4, 10], [33, 2.4, 6], [41, 3.0, 8]]) ivy.push([x, 0, -35.45, w, h, 0]);
+  for (const [x, z, h] of [[-38.5, -32.7, 11], [-14, -33.25, 8], [14.5, -32.4, 9.5], [37.5, -32.95, 12]]) ivy.push([x + (rr() - 0.5) * 0.6, 0, z, 2.2, h, 0]);
+  // drapes hanging off the gatehouse and wing parapets
+  for (const [x, y, z, w, h] of [[-4.5, 13.4, -35.25, 2.4, 4.6], [4.6, 13.4, -35.25, 1.8, 3.4], [-26, 11.1, -35.0, 3.0, 4.0], [29, 11.1, -35.0, 2.6, 3.2]]) ivy.push([x, y, z, w, -h, 0]);
+  // lodges and gate pylons on the esplanade (face -z)
+  for (const [x, w, h] of [[-10.5, 2.4, 6.5], [-16, 3.0, 9], [-23, 2.6, 7], [11, 2.2, 5.5], [17.5, 3.2, 9.5], [24, 2.4, 6]]) ivy.push([x, 0, 35.85, w, h, Math.PI]);
+  for (const sx of [-1, 1]) ivy.push([sx * 5, 0, 34.65, 1.5, 5.2, Math.PI]);
+  // service-court walls beyond both gates
+  for (const [x, h] of [[-8.5, 7.5], [-2.5, 5], [4, 8.2], [9, 6]]) { ivy.push([x, 0, -54.95, 2.8, h, 0]); ivy.push([-x, 0, 54.95, 2.8, h, Math.PI]); }
+
+  // grass and weeds: wall bases, kerbs, seams, basin foot, then random cracks in open paving
+  const ok = (x, z) => !inArea(x, z, 0.3) && !colliders.some((c) => !c.ground && !c.walk && c.maxY > 0.2 && x > c.minX - 0.05 && x < c.maxX + 0.05 && z > c.minZ - 0.05 && z < c.maxZ + 0.05);
+  const put = (x, z, s) => { if (ok(x, z)) tufts.push([x, z, s]); };
+  for (let i = 0; i < 150; i++) { const x = (rr() * 2 - 1) * 35; if (Math.abs(x) > 3.2) put(x, -35.3 + rr() * 0.35, 0.3 + rr() * 0.45); }
+  for (let i = 0; i < 120; i++) { const x = (rr() * 2 - 1) * 35; if (Math.abs(x) > 3.2) put(x, 35.3 - rr() * 0.35, 0.3 + rr() * 0.4); }
+  for (let i = 0; i < 140; i++) { const sx = rr() < 0.5 ? -1 : 1, z = 12 + rr() * 23.5; put(sx * (6.95 + rr() * 0.7), z, 0.2 + rr() * 0.3); }
+  for (let i = 0; i < 90; i++) { const a = rr() * Math.PI * 2, r = rr() < 0.5 ? 7.95 : 6.65; put(Math.cos(a) * r, Math.sin(a) * r, 0.15 + rr() * 0.2); }
+  for (let i = 0; i < 70; i++) { const t = rr(); const e = Math.floor(rr() * 4); const [x, z] = e === 0 ? [-9 + t * 18, -12.05] : e === 1 ? [-9 + t * 18, 12.05] : e === 2 ? [-9.05, -12 + t * 24] : [9.05, -12 + t * 24]; put(x, z, 0.18 + rr() * 0.25); }
+  for (let i = 0; i < 40; i++) { const a = rr() * Math.PI * 2; put(Math.cos(a) * 2.68, -30.4 + Math.sin(a) * 2.68, 0.22 + rr() * 0.25); }
+  for (let i = 0; i < 130; i++) { const x = (rr() * 2 - 1) * 34, z = (rr() * 2 - 1) * 34; put(x, z, 0.12 + rr() * 0.22); }
+
+  // litter (four hub strips so nothing hides under the deck)
+  const litterZones = [[-6.8, 6.8, 12.4, 35.4, 70], [-8.6, 8.6, -11.6, -5.6, 22], [-8.6, 8.6, 5.6, 11.6, 22], [-8.6, -5.4, -5.6, 5.6, 12], [5.4, 8.6, -5.6, 5.6, 12],
+    [-19.5, 19.5, -35.3, -25.5, 55], [-34, 34, -34, 34, 70], [-8, 8, -54, -45, 18], [-8, 8, 45, 54, 18]];
+  const spills = [[-8.6, -15.2, 1.5, 180], [-6.4, 13.9, 0.7, 45], [12.3, -3.6, 0.6, 35], [2, 22, 0.4, 14], [-3, -27.5, 0.5, 18]];
+  return { ivy, tufts, litterZones, spills };
 }

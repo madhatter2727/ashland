@@ -10,11 +10,15 @@ export const PALETTE = {
   flags: ['#e2453c', '#2f63c4', '#f4c542', '#e86aa0', '#3fb0a8'],
 };
 
+// sun-bleach a colour toward chalky grey (k = 0 new, 1 fully bleached)
+const fade = (c, k) => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return c.clone().lerp(new THREE.Color(l * 0.85 + 0.1, l * 0.83 + 0.1, l * 0.8 + 0.1), k); };
+export const WEAR = { fade: 0.42, missing: 0.16 };
+
 export class Festive {
   constructor() { this.pos = []; this.col = []; this.wave = []; this.idx = []; this.n = 0; this.ropes = []; }
   // one quad strip / triangle from local cloth coordinates (u along the free direction 0..1, v across)
   _cloth(origin, along, down, len, width, color, { tri = true, seg = 6, phase = 0, amp = 1 } = {}) {
-    const c = new THREE.Color(color), base = this.n;
+    const c = fade(new THREE.Color(color), WEAR.fade * (0.8 + 0.4 * Math.abs(Math.sin(phase * 3.7)))), base = this.n;
     for (let i = 0; i <= seg; i++) {
       const u = i / seg, w = tri ? width * (1 - u) : width;
       for (const v of [0, 1]) {
@@ -26,13 +30,20 @@ export class Festive {
     for (let i = 0; i < seg; i++) { const a = base + i * 2; this.idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   }
   // a long swallow-less pennant flying from a mast top, streaming downwind (+x +z-ish)
-  pennant(top, color, { len = 3.2, width = 1.0, wind = new THREE.Vector3(0.82, 0, 0.57), phase = 0 } = {}) {
-    const along = wind.clone().normalize(), down = new THREE.Vector3(0, 1, 0);
-    this._cloth(top.clone().add(new THREE.Vector3(0, -width / 2, 0)), along, down, len, width, color, { tri: true, seg: 8, phase, amp: 1 });
+  // state: 'fly' | 'droop' (hangs limp down the mast) | 'torn' (a ragged stub)
+  pennant(top, color, { len = 3.2, width = 1.0, wind = new THREE.Vector3(0.82, 0, 0.57), phase = 0, state = 'fly' } = {}) {
+    if (state === 'droop') wind = new THREE.Vector3(0.25, -1, 0.15);
+    if (state === 'torn') len *= 0.42;
+    const along = wind.clone().normalize(), down = state === 'droop' ? new THREE.Vector3(0.6, 0, -0.8) : new THREE.Vector3(0, 1, 0);
+    this._cloth(top.clone().add(new THREE.Vector3(0, state === 'droop' ? -0.1 : -width / 2, 0)), along, down, len, width, color, { tri: state !== 'torn', seg: 8, phase, amp: state === 'droop' ? 0.2 : 1 });
     this.ropes.push(new THREE.CylinderGeometry(0.045, 0.045, width + 2.2, 6).translate(top.x, top.y - (width + 2.2) / 2 + 0.6, top.z));
   }
   // a string of triangular bunting hung between two points with a catenary sag
-  bunting(p0, p1, { sag = 1.2, spacing = 0.62, size = 0.5, palette = PALETTE.bunting, seed = 0 } = {}) {
+  // broken: the line has parted near the far end and hangs down from p0
+  bunting(p0, p1, { sag = 1.2, spacing = 0.62, size = 0.5, palette = PALETTE.bunting, seed = 0, broken = false } = {}) {
+    if (broken) { p1 = p0.clone().lerp(p1, 0.35); p1.y = Math.max(0.6, p0.y - 4.2); sag = 0.25; }
+    let rs = (seed * 9301 + 49297) % 233280;
+    const rnd = () => (rs = (rs * 9301 + 49297) % 233280) / 233280;
     const d = p1.clone().sub(p0), L = d.length(), n = Math.max(2, Math.floor(L / spacing));
     const pts = []; for (let i = 0; i <= 16; i++) { const t = i / 16; pts.push(p0.clone().addScaledVector(d, t).add(new THREE.Vector3(0, -sag * 4 * t * (1 - t), 0))); }
     this.ropes.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.018, 4));
@@ -40,7 +51,8 @@ export class Festive {
     const along = d.clone().normalize();
     for (let i = 0; i < n; i++) {
       const t = (i + 0.5) / n, top = p0.clone().addScaledVector(d, t).add(new THREE.Vector3(0, -sag * 4 * t * (1 - t), 0));
-      const c = new THREE.Color(palette[(i + seed) % palette.length]), base = this.n;
+      if (rnd() < WEAR.missing) continue;
+      const c = fade(new THREE.Color(palette[(i + seed) % palette.length]), WEAR.fade * (0.7 + rnd() * 0.6)), base = this.n;
       // triangle hanging down: two top corners along the rope, tip below; wave = 0 at the rope
       const a = top.clone().addScaledVector(along, -size * 0.45), b = top.clone().addScaledVector(along, size * 0.45), tip = top.clone().add(new THREE.Vector3(0, -size * 0.95, 0));
       for (const [p, u] of [[a, 0], [b, 0], [tip, 1]]) { this.pos.push(p.x, p.y, p.z); this.col.push(c.r, c.g, c.b); this.wave.push(u * 0.35, i * 0.7 + seed, 0); this.n++; }
@@ -49,16 +61,17 @@ export class Festive {
     return side;
   }
   // a tall hanging banner (heraldic), hung flat against a wall facing `normal`
-  banner(top, normal, color, trim, { w = 1.6, h = 5.0 } = {}) {
+  banner(top, normal, color, trim, { w = 1.6, h = 5.0, torn = false } = {}) {
     const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), normal).normalize();
     const o = top.clone().addScaledVector(normal, 0.08);
-    const c = new THREE.Color(color), t = new THREE.Color(trim), seg = 6, base = this.n;
+    const c = fade(new THREE.Color(color), WEAR.fade * 1.2), t = fade(new THREE.Color(trim), WEAR.fade), seg = 6, base = this.n;
+    const rag = cols0 => cols0.map((_, k) => (torn ? (0.18 + 0.35 * Math.abs(Math.sin(top.x * 3.1 + k * 2.3))) * h : 0));
     // body: rectangle with a pointed (swallow) bottom; columns l..r, rows top..bottom
-    const cols = [-0.5, -0.43, 0, 0.43, 0.5];
+    const cols = [-0.5, -0.43, 0, 0.43, 0.5], lift = rag(cols);
     for (let i = 0; i <= seg; i++) {
       const v = i / seg;
       for (let k = 0; k < cols.length; k++) {
-        const sx = cols[k], yy = -v * h + (i === seg && k === 2 ? 0.7 : 0);
+        const sx = cols[k], yy = -v * (h - lift[k]) + (i === seg && k === 2 && !torn ? 0.7 : 0);
         const p = o.clone().addScaledVector(right, sx * w).add(new THREE.Vector3(0, yy, 0));
         const cc = k === 0 || k === 4 || i === 0 ? t : c;
         this.pos.push(p.x, p.y, p.z); this.col.push(cc.r, cc.g, cc.b); this.wave.push(v * 0.1, top.x * 0.3 + top.z * 0.2, 1); this.n++;

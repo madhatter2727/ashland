@@ -90,10 +90,13 @@ function bannerTex(i) {
   g.fillStyle = cols[1]; g.font = '700 54px "Playfair Display", Georgia, serif'; g.textAlign = 'center';
   [...'ASHLAND'].forEach((ch, k) => g.fillText(ch, 128, 320 + k * 40 * 0.95 * 1.1));
   // fade, mildew, rain streaks
-  for (let k = 0; k < 200; k++) { g.fillStyle = `rgba(${r() < 0.5 ? '255,250,235' : '30,25,20'},${r() * 0.04})`; g.fillRect(r() * 256, r() * 768, 2 + r() * 10, 6 + r() * 60); }
+  // sun-bleached, water-stained, mildew
+  g.fillStyle = 'rgba(235,228,210,0.32)'; g.fillRect(0, 0, 256, 768);
+  for (let k = 0; k < 700; k++) { g.fillStyle = `rgba(${r() < 0.5 ? '240,232,212' : '40,34,24'},${r() * 0.1})`; g.fillRect(r() * 256, r() * 768, 2 + r() * 10, 6 + r() * 60); }
   // torn bottom edge and a rip: cut with destination-out
-  // swallowtail hem
+  // swallowtail hem, and on every other banner a ragged tear
   g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(0, 768); g.lineTo(128, 680); g.lineTo(256, 768); g.closePath(); g.fill();
+  if (i % 2) { g.beginPath(); g.moveTo(0, 768); for (let x = 0; x <= 256; x += 16) g.lineTo(x, 600 + r() * 140); g.lineTo(256, 768); g.closePath(); g.fill(); g.beginPath(); g.moveTo(150, 768); g.lineTo(168, 420); g.lineTo(186, 768); g.fill(); }
   g.globalCompositeOperation = 'source-over';
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; texCache.set('b' + i, t); return t;
 }
@@ -127,7 +130,9 @@ function mapTex() {
   blob(620, 850, 296, 80, '#a8473a', 'MAIN GATE'); blob(1300, 190, 110, 120, '#7a3a2a', 'IRON COMET'); blob(126, 190, 150, 110, '#3b6e6a', 'GRAND WHEEL');
   blob(860, 600, 220, 70, '#d8c08a', 'CAROUSEL'); blob(420, 760, 200, 70, '#d8c08a', 'SKY SWINGS'); blob(380, 190, 150, 80, '#d8c08a', 'THE PLUMMET');
   g.fillStyle = '#b3201a'; g.beginPath(); g.arc(768, 760, 20, 0, 7); g.fill(); g.font = 'italic 700 30px Georgia'; g.fillText('YOU ARE HERE', 768, 810);
-  for (let k = 0; k < 400; k++) { g.fillStyle = `rgba(${r() < 0.6 ? '60,40,20' : '240,230,200'},${r() * 0.04})`; const s = 4 + r() * 40; g.fillRect(r() * 1536, r() * 1024, s, s * (0.4 + r())); }
+  g.fillStyle = 'rgba(240,230,205,0.22)'; g.fillRect(0, 0, 1536, 1024);
+  for (let k = 0; k < 18; k++) { const x = r() * 1536, y = r() * 1024; g.fillStyle = `rgba(${150 + r() * 30},${135 + r() * 25},${110},0.85)`; g.beginPath(); g.moveTo(x, y); for (let j = 0; j < 8; j++) g.lineTo(x + (r() - 0.5) * 110, y + (r() - 0.5) * 70); g.fill(); }
+  for (let k = 0; k < 1600; k++) { g.fillStyle = `rgba(${r() < 0.6 ? '60,40,20' : '240,230,200'},${r() * 0.08})`; const s = 4 + r() * 40; g.fillRect(r() * 1536, r() * 1024, s, s * (0.4 + r())); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 export function parkMap(ctx, x, z, rot) {
@@ -143,9 +148,11 @@ export function parkMap(ctx, x, z, rot) {
   const pl = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: mapTex(), roughness: 0.75, alphaTest: 0.5 }));
   pl.position.set(0, y0 + h / 2, -0.07); pl.applyMatrix4(F.m); scene.add(pl);
 }
-export function popcornCart(ctx, x, z, rot, seed = 1) {
+export function popcornCart(ctx, x, z, rot, seed = 1, { tipped = false } = {}) {
   const { B, M, rr } = ctx;
   const m = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rot), new THREE.Vector3(1, 1, 1));
+  // knocked over onto its side (visual only: the cover box below is unchanged)
+  if (tipped) m.multiply(new THREE.Matrix4().makeTranslation(0, 0.5, 0)).multiply(new THREE.Matrix4().makeRotationX(-Math.PI / 2 + 0.06));
   const add = (mat, list) => { const g = merge(list); g.applyMatrix4(m); B.add(mat, g); };
   const L = 1.7, W = 0.9;
   add(seed % 2 ? M.woodRed : M.woodYellow, [new THREE.BoxGeometry(L, 0.7, W).translate(0, 0.75, 0)]);
@@ -157,7 +164,7 @@ export function popcornCart(ctx, x, z, rot, seed = 1) {
     lathe([[0.06, 0], [0.09, 0.08], [0.02, 0.3], [0, 0.3]], 8).translate(0, 3.1, 0)]);
   const roof = new THREE.ConeGeometry(1.25, 0.55, 4, 1); roof.rotateY(Math.PI / 4); roof.scale(1, 1, 0.62); roof.translate(0, 3.0, 0); add(seed % 2 ? M.woodYellow : M.woodRed, [roof]);
   // corn: a heap in the case, gone grey
-  const corn = []; for (let k = 0; k < 40; k++) { const s = new THREE.IcosahedronGeometry(0.03 + rr() * 0.02, 0); s.translate(-0.2 + (rr() - 0.5) * 0.8, 1.22 + rr() * 0.12, (rr() - 0.5) * 0.55); corn.push(s); } add(M.woodCream, corn);
+  const corn = []; for (let k = 0; k < 90; k++) { const s = new THREE.IcosahedronGeometry(0.022 + rr() * 0.014, 0); s.scale(1, 0.75 + rr() * 0.4, 1 + rr() * 0.3); s.translate(-0.2 + (rr() - 0.5) * 0.85, 1.2 + rr() * 0.1 * (1 - Math.abs(rr() - 0.5)), (rr() - 0.5) * 0.6); corn.push(s); } add(M.popcorn, corn);
   const wheels = []; for (const sx of [-1, 1]) { const w = new THREE.TorusGeometry(0.36, 0.035, 6, 20); w.translate(0.45, 0.38, sx * 0.48); wheels.push(w); for (let k = 0; k < 6; k++) { const s = new THREE.BoxGeometry(0.02, 0.7, 0.02); s.rotateZ((k / 6) * Math.PI); s.translate(0.45, 0.38, sx * 0.48); wheels.push(s); } }
   wheels.push(new THREE.CylinderGeometry(0.03, 0.03, 0.45, 6).translate(-0.7, 0.2, 0)); add(M.iron, wheels);
   const c = new THREE.Vector3(L / 2 + 0.1, 0, W / 2 + 0.1).applyAxisAngle(new THREE.Vector3(0, 1, 0), rot);

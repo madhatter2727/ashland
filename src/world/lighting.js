@@ -23,8 +23,8 @@ export const LIGHTING = {
   vmSunColor: '#ffe0b8', vmSunIntensity: 2.4, vmHemiSky: '#b4cbe8', vmHemiGround: '#6e5e4a', vmHemiIntensity: 1.1, vmEnv: 0.7,
   // painted sky dome
   sky: { zenith: [0.17, 0.36, 0.72], mid: [0.42, 0.62, 0.9], horizon: [0.86, 0.84, 0.8], sunGlow: [1.6, 1.05, 0.6], cloudLit: [1.25, 1.12, 0.98], cloudShade: [0.62, 0.68, 0.8], cloudCover: 0.42 },
-  // surfaces: 0 = bone dry. Puddles and damp sheen scale by this (the park was hosed down this morning).
-  wetness: 0.12,
+  // surfaces: 0 = bone dry. Puddles and damp sheen scale by this (it rained overnight; standing water lingers).
+  wetness: 0.5,
   // shadow camera covers the playable park plus the castle's towers
   shadow: { extent: 56, far: 220, bias: -0.0003, normalBias: 0.03 },
 };

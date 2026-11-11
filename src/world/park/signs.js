@@ -11,7 +11,7 @@ export function letterMask(text, { w = 2048, h = 256, size = 180, spacing = 0.18
   const k = Math.min(1, (w * 0.94) / total); g.save(); g.translate(w / 2 - (total * k) / 2, h / 2); g.scale(k, 1);
   let x = 0; chars.forEach((ch, i) => { g.fillText(ch, x, 0); x += widths[i] + sp; }); g.restore();
   // chips knocked out of the gilding
-  for (let i = 0; i < w * 0.004; i++) { g.fillStyle = '#000'; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 4, 0, 6.3); g.fill(); }
+  for (let i = 0; i < w * 0.02; i++) { g.fillStyle = '#000'; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 4, 0, 6.3); g.fill(); }
   const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t;
 }
 // a sign plane of gilt letters (alphaTest on the gold material clone)
@@ -51,7 +51,7 @@ export function paintedSign(text, { bg = '#4a1512', fg = '#c9a24f', w = 2048, h 
   g.font = `700 ${h * (sub ? 0.42 : 0.52)}px ${FONT}`; g.fillText(text, w / 2, h * (sub ? 0.42 : 0.53));
   if (sub) { g.font = `italic 500 ${h * 0.16}px ${FONT}`; g.fillText(sub, w / 2, h * 0.78); }
   // peeled paint showing grey timber
-  for (let i = 0; i < 0; i++) { g.fillStyle = `rgba(${90 + Math.random() * 30},${85 + Math.random() * 25},${75 + Math.random() * 20},${0.5 + Math.random() * 0.4})`; g.beginPath(); const x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); for (let k = 0; k < 7; k++) g.lineTo(x + (Math.random() - 0.5) * 120, y + (Math.random() - 0.5) * 50); g.fill(); }
-  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(10,6,4,.12)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 12; i++) { g.fillStyle = `rgba(${90 + Math.random() * 30},${85 + Math.random() * 25},${75 + Math.random() * 20},${0.5 + Math.random() * 0.4})`; g.beginPath(); const x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); for (let k = 0; k < 7; k++) g.lineTo(x + (Math.random() - 0.5) * 120, y + (Math.random() - 0.5) * 50); g.fill(); }
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(10,6,4,.3)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }

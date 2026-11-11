@@ -53,8 +53,13 @@ perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchan
   dormers, domes with ribs and lanterns, and iron railings. Static pieces are merged per material.
 - Real CC0 models: iron gates, statues, lion heads, lanterns, a chandelier, urns, benches, shrubs, weeds,
   ferns and mossy rocks. The heaviest models are decimated so the game stays smooth on laptop GPUs.
-- One shared weather shader can add grime, damp, rain streaks, moss, flaking gilt and puddles; the park is
-  open and kept, so a single `UPKEEP` table in `src/world/park/materials.js` scales all of it way down.
+- The park is a beautiful place abandoned years ago (roughly 70% magic, 30% apocalypse). One shared weather
+  shader adds sun-faded chalky paint, peeling patches, rust streaks, grime and damp at wall bases, moss in
+  cracks, cracked paving and puddles; the `DECAY` table in `src/world/park/materials.js` scales all of it.
+  `src/world/park/decay.js` lays instanced, non-colliding neglect on top: ivy on the castle, lodges and
+  service courts, grass through the paving seams, litter, faded park maps and spilled popcorn. Bunting is
+  faded with broken runs and missing flags, banners are torn, about half the bulbs are dead, the fountain
+  has gone stagnant, and windows are broken or boarded. None of it changes colliders, doors or paths.
 - Lighting is late-afternoon daylight, and every number lives in one file, `src/world/lighting.js`: a warm
   sun 24 degrees up in the south-west raking the castle front, a blue sky with cumulus, a real partly-cloudy
   daylight HDRI (Poly Haven kloofendal_48d_partly_cloudy_puresky, CC0) for image-based light and
