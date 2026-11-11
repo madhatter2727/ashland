@@ -6,7 +6,7 @@ opened again. Built on three.js and WebGL shaders.
 ASHLAND is a **setting reskin of [Hordefall](https://github.com/madhatter2727/hordefall)**. The guns, movement,
 perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchanged. The world is new.
 
-**Play:** see the repo's Vercel deployment (preview link in the About panel).
+**Play:** https://ashland-lac.vercel.app
 
 ![The Midway, with the coaster skeleton behind it](docs/midway.jpg)
 
