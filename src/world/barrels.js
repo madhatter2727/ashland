@@ -9,11 +9,11 @@ function barrelTexture() {
   // paint mottling + drips + rust bloom
   for (let i = 0; i < 900; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? '40,8,5' : '170,50,35'},${Math.random() * 0.12})`; x.beginPath(); x.arc(Math.random() * W, Math.random() * H, 4 + Math.random() * 30, 0, 6.28); x.fill(); }
   for (let i = 0; i < 70; i++) { const px = Math.random() * W, py = Math.random() * H * 0.3; x.fillStyle = `rgba(70,30,15,${0.2 + Math.random() * 0.3})`; x.fillRect(px, py, 2 + Math.random() * 4, 40 + Math.random() * 160); }
-  // hazard band
-  x.fillStyle = '#e8b81c'; x.fillRect(0, H * 0.42, W, H * 0.16);
-  x.save(); x.beginPath(); x.rect(0, H * 0.42, W, H * 0.16); x.clip(); x.fillStyle = '#111';
-  for (let k = -40; k < W + 40; k += 48) { x.beginPath(); x.moveTo(k, H * 0.42); x.lineTo(k + 24, H * 0.42); x.lineTo(k + 24 - 82, H * 0.58); x.lineTo(k - 82, H * 0.58); x.fill(); }
-  x.restore();
+  // painted cream band with the park works' lettering (these are the old lamp-oil drums for the gas lamps)
+  x.fillStyle = '#d9c9a3'; x.fillRect(0, H * 0.42, W, H * 0.16);
+  x.fillStyle = '#5e130d'; x.font = "700 40px 'Times New Roman', Georgia, serif"; x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (const cx of [W * 0.25, W * 0.75]) x.fillText('LAMP OIL', cx, H * 0.5);
+  x.textBaseline = 'alphabetic';
   // flammable diamonds (two sides)
   for (const cx of [W * 0.25, W * 0.75]) {
     x.save(); x.translate(cx, H * 0.24); x.rotate(Math.PI / 4);
@@ -22,8 +22,8 @@ function barrelTexture() {
     x.fillStyle = '#141414'; x.beginPath(); // flame glyph
     x.moveTo(cx, H * 0.24 - 30); x.quadraticCurveTo(cx + 26, H * 0.24 + 2, cx + 12, H * 0.24 + 22); x.quadraticCurveTo(cx, H * 0.24 + 30, cx - 12, H * 0.24 + 22);
     x.quadraticCurveTo(cx - 24, H * 0.24 + 4, cx - 6, H * 0.24 - 6); x.quadraticCurveTo(cx - 2, H * 0.24 + 8, cx + 2, H * 0.24 + 4); x.quadraticCurveTo(cx + 6, H * 0.24 - 10, cx, H * 0.24 - 30); x.fill();
-    x.font = '700 30px Arial'; x.textAlign = 'center'; x.fillStyle = '#f2e9dc'; x.fillText('FLAMMABLE', cx, H * 0.76);
-    x.font = '600 18px Arial'; x.fillText('UN 1203  ·  KEEP AWAY FROM FIRE', cx, H * 0.83);
+    x.font = "700 28px 'Times New Roman', Georgia, serif"; x.textAlign = 'center'; x.fillStyle = '#f2e9dc'; x.fillText('ASHLAND WORKS', cx, H * 0.76);
+    x.font = "600 18px 'Times New Roman', Georgia, serif"; x.fillText('NO NAKED FLAME', cx, H * 0.83);
   }
   // scratches through to bare metal
   x.lineCap = 'round';

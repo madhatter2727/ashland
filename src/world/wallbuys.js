@@ -4,7 +4,7 @@ import * as THREE from 'three';
 const SPOTS = [
   { id: 'smg', x: -12, y: 1.45, z: 13.77, ny: Math.PI },        // container south face
   { id: 'sg', x: 8, y: 1.45, z: -18.77, ny: 0 },                // container north face
-  { id: 'mr', x: 13.17, y: 1.45, z: 10.6, ny: -Math.PI / 2 },   // container west face
+  { id: 'mr', x: 12.67, y: 1.45, z: 9, ny: -Math.PI / 2 },     // carousel west face
   { id: 'lmg', x: 18.77, y: 1.45, z: -13.2, ny: -Math.PI / 2 }, // container west face
 ];
 

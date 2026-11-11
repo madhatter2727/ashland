@@ -1,6 +1,6 @@
 // Procedural, layered WebAudio. No sample files: every sound is synthesized at runtime.
 export class Audio {
-  constructor() { this.ctx = null; this.enabled = true; this.volume = parseFloat(localStorage.getItem('hf-vol') || '0.8'); }
+  constructor() { this.ctx = null; this.enabled = true; this.volume = parseFloat(localStorage.getItem('ash-vol') || '0.8'); }
 
   init() {
     if (this.ctx) { this.ctx.resume(); return; }
@@ -23,7 +23,7 @@ export class Audio {
     this.noise = this.noiseBuffer(4);
   }
 
-  setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; localStorage.setItem('hf-vol', v); }
+  setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; localStorage.setItem('ash-vol', v); }
 
   noiseBuffer(sec) {
     const ctx = this.ctx, b = ctx.createBuffer(1, ctx.sampleRate * sec, ctx.sampleRate), d = b.getChannelData(0);

@@ -1,9 +1,9 @@
 {
-  "name": "hordefall",
+  "name": "ashland",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "HORDEFALL - a horde arena shooter in the browser (three.js + WebGL shaders)",
+  "description": "ASHLAND - a horde arena shooter in an abandoned grand amusement park (three.js + WebGL shaders). A setting reskin of Hordefall.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

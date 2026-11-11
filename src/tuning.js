@@ -1,5 +1,5 @@
 // ============================================================================
-// HORDEFALL wave pacing: every number that sets how hard a wave is lives here.
+// ASHLAND wave pacing: every number that sets how hard a wave is lives here.
 // Player reference speeds: walk 5.4 m/s, sprint 8.4 m/s.
 //
 // Per wave:
@@ -98,7 +98,7 @@ export const CRATE = {
     { x: 16, z: -26, ry: 0 },
     { x: -8, z: 24, ry: Math.PI },
     { x: 26, z: -6, ry: -Math.PI / 2 },
-    { x: 30, z: 33.5, ry: Math.PI, area: 'underpass' }, // only once THE UNDERPASS is open
+    { x: 30, z: 33.5, ry: Math.PI, area: 'underpass' }, // only once THE GROTTO is open
   ],
 };
 
@@ -153,11 +153,11 @@ export const DRINKS = {
 export const AREAS = {
   spawnShare: 0.25,
   list: [
-    { id: 'roof', name: 'THE DEPOT ROOF', blurb: 'Rooftop over the old depot', price: 1000, kind: 'gate',
+    { id: 'roof', name: 'THE CLOCK TERRACE', blurb: 'Stone terrace before the Palace of Hours', price: 1000, kind: 'gate',
       rect: [-36, -36, -20.2, -27.2], roofY: 3.2,
       barrier: { x: -20.3, z: -30, nx: 1, nz: 0, w: 2.8 },
       spawns: [[-30, 3.2, -34.2], [-34.2, 3.2, -28.8]] },
-    { id: 'underpass', name: 'THE UNDERPASS', blurb: 'Old subway concourse', price: 1500, kind: 'shutter',
+    { id: 'underpass', name: 'THE GROTTO', blurb: 'The old rock-cut boat ride hall', price: 1500, kind: 'shutter',
       rect: [26, 27, 36, 36],
       barrier: { x: 31, z: 27, nx: 0, nz: -1, w: 3 },
       spawns: [[33.4, 0, 32.6]] },

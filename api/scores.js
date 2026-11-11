@@ -1,4 +1,4 @@
-// HORDEFALL global top-10. One small public JSON blob, rewritten only when a run makes the board.
+// ASHLAND global top-10. One small public JSON blob, rewritten only when a run makes the board.
 import { put, head } from '@vercel/blob';
 
 const KEY = 'leaderboard.json', MAX = 10;

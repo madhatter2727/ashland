@@ -38,7 +38,7 @@ const fmtTime = (t) => { t = Math.max(0, Math.round(t)); return `${Math.floor(t 
 class Game {
   constructor(assets) {
     this.assets = assets;
-    this.quality = localStorage.getItem('hf-q') || 'medium';
+    this.quality = localStorage.getItem('ash-q') || 'medium';
     this.state = 'menu'; // menu | play | paused | shop | dead
     const canvas = $('game');
     const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false }));
@@ -48,7 +48,7 @@ class Game {
 
     // ---------- world ----------
     const scene = (this.scene = new THREE.Scene());
-    scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(0.27, 0.2, 0.24, THREE.LinearSRGBColorSpace), 0.0115);
+    scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(0.2, 0.205, 0.215, THREE.LinearSRGBColorSpace), 0.0115);
     this.sky = makeSky(); scene.add(this.sky);
     const pm = new THREE.PMREMGenerator(r);
     // image-based lighting + reflections from a real dusk HDRI (Poly Haven, CC0), turned so its sun sits near ours
@@ -56,14 +56,14 @@ class Game {
     scene.environment = this.env; scene.environmentIntensity = 0.5;
     scene.environmentRotation.set(0, 2.2, 0);
 
-    const sun = (this.sun = new THREE.DirectionalLight('#ffb27e', 3.4));
+    const sun = (this.sun = new THREE.DirectionalLight('#ffc28e', 3.4));
     sun.position.copy(SUN_DIR).multiplyScalar(70); sun.target.position.set(0, 0, 0);
     sun.castShadow = true;
     const sc = sun.shadow.camera; sc.left = -48; sc.right = 48; sc.top = 48; sc.bottom = -48; sc.near = 1; sc.far = 170;
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.035;
     sun.shadow.mapSize.setScalar(QUALITY[this.quality].shadow);
     scene.add(sun, sun.target);
-    scene.add(new THREE.HemisphereLight('#7f78a8', '#3b2a22', 1.1));
+    scene.add(new THREE.HemisphereLight('#838a96', '#2f2a24', 1.1));
 
     this.camera = new THREE.PerspectiveCamera(HIP_FOV, innerWidth / innerHeight, 0.05, 600);
     this.aim = new THREE.Object3D(); this.aim.rotation.order = 'YXZ';
@@ -75,7 +75,7 @@ class Game {
     this.vmCamera = new THREE.PerspectiveCamera(VM_HIP_FOV, innerWidth / innerHeight, 0.01, 10);
     this.vmScene.add(this.vmCamera);
     this.vmSun = new THREE.DirectionalLight('#ffb27e', 2.6); this.vmScene.add(this.vmSun, this.vmSun.target);
-    this.vmHemi = new THREE.HemisphereLight('#8a80b0', '#3b2a22', 1.2); this.vmScene.add(this.vmHemi);
+    this.vmHemi = new THREE.HemisphereLight('#8a909c', '#2f2a24', 1.2); this.vmScene.add(this.vmHemi);
     this.vmLocal = new THREE.PointLight('#ff8a3a', 0, 4, 2); this.vmScene.add(this.vmLocal);
 
     this.arena = buildArena(scene, this.quality, assets);
@@ -185,19 +185,19 @@ class Game {
     $('resume').onclick = () => { this.input.lock(); };
     $('restart').onclick = () => this.restart();
     $('d-entry').onsubmit = (e) => this.saveScore(e);
-    $('d-name').value = localStorage.getItem('hf-name') || '';
+    $('d-name').value = localStorage.getItem('ash-name') || '';
     $('d-name').oninput = (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); };
     $('lb-local').onclick = () => { this.lbTab = 'local'; this.renderBoard(); };
     $('lb-global').onclick = () => { this.lbTab = 'global'; this.renderBoard(); if (!this.global) this.fetchGlobal().then(() => this.renderBoard()); };
     $('restart2').onclick = () => this.restart();
     document.querySelectorAll('[data-q]').forEach((b) => (b.onclick = () => this.applyQuality(b.dataset.q)));
     const sens = $('sens'); sens.value = this.input.sensitivity;
-    sens.oninput = () => { this.input.sensitivity = parseFloat(sens.value); localStorage.setItem('hf-sens', sens.value); $('sensv').textContent = (+sens.value).toFixed(2); };
+    sens.oninput = () => { this.input.sensitivity = parseFloat(sens.value); localStorage.setItem('ash-sens', sens.value); $('sensv').textContent = (+sens.value).toFixed(2); };
     $('sensv').textContent = this.input.sensitivity.toFixed(2);
     const vol = $('vol'); vol.value = this.audio.volume;
     vol.oninput = () => this.audio.setVolume(parseFloat(vol.value));
-    this.dmgNumsOn = localStorage.getItem('hf-dn') !== '0';
-    const dn = $('dmgnums'); dn.checked = this.dmgNumsOn; dn.onchange = () => { this.dmgNumsOn = dn.checked; localStorage.setItem('hf-dn', dn.checked ? '1' : '0'); };
+    this.dmgNumsOn = localStorage.getItem('ash-dn') !== '0';
+    const dn = $('dmgnums'); dn.checked = this.dmgNumsOn; dn.onchange = () => { this.dmgNumsOn = dn.checked; localStorage.setItem('ash-dn', dn.checked ? '1' : '0'); };
     addEventListener('keydown', (e) => {
       if (e.code === 'KeyP' && this.state === 'play') document.exitPointerLock();
       if (e.code === 'KeyF' && this.state === 'play') {
@@ -225,7 +225,7 @@ class Game {
     document.body.classList.toggle('playing', screen === null);
   }
   applyQuality(q) {
-    this.quality = q; localStorage.setItem('hf-q', q);
+    this.quality = q; localStorage.setItem('ash-q', q);
     document.querySelectorAll('[data-q]').forEach((b) => b.classList.toggle('sel', b.dataset.q === q));
     const Q = QUALITY[q];
     this.renderer.setPixelRatio(Q.pr);
@@ -787,7 +787,7 @@ class Game {
   }
   onDeath() {
     this.state = 'dead'; this.deadT = 0;
-    const best = Math.max(+localStorage.getItem('hf-best') || 0, this.score); localStorage.setItem('hf-best', best);
+    const best = Math.max(+localStorage.getItem('ash-best') || 0, this.score); localStorage.setItem('ash-best', best);
     const acc = this.shotsFired ? Math.round((this.shotsHit / this.shotsFired) * 100) : 0;
     this.run = { score: this.score, wave: this.horde.wave, kills: this.kills, heads: this.headshots, acc, time: Math.round(this.runTime), saved: false };
     $('d-wave').textContent = this.horde.wave; $('d-kills').textContent = this.kills; $('d-heads').textContent = this.headshots;
@@ -802,7 +802,7 @@ class Game {
     this.updateEntry();
     setTimeout(() => { if (this.state === 'dead') { document.exitPointerLock?.(); this.show('dead'); if (this.run.qualifies || this.run.globalQualifies) $('d-name').focus(); } }, 1600);
   }
-  localScores() { try { const l = JSON.parse(localStorage.getItem('hf-scores') || '[]'); return Array.isArray(l) ? l : []; } catch { return []; } }
+  localScores() { try { const l = JSON.parse(localStorage.getItem('ash-scores') || '[]'); return Array.isArray(l) ? l : []; } catch { return []; } }
   updateEntry() {
     const r = this.run; if (!r) return;
     const g = this.global?.top;
@@ -821,12 +821,12 @@ class Game {
     const r = this.run; if (!r || r.saved) return;
     const name = ($('d-name').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
     if (!name) { $('d-name').focus(); return; }
-    localStorage.setItem('hf-name', name);
+    localStorage.setItem('ash-name', name);
     r.saved = true; r.name = name; $('d-save').disabled = true;
     const entry = { name, score: r.score, wave: r.wave, kills: r.kills, heads: r.heads, acc: r.acc, time: r.time, date: new Date().toISOString().slice(0, 10) };
     if (r.qualifies) {
       const l = this.localScores(); l.push(entry); l.sort((a, b) => b.score - a.score || a.time - b.time);
-      localStorage.setItem('hf-scores', JSON.stringify(l.slice(0, 10)));
+      localStorage.setItem('ash-scores', JSON.stringify(l.slice(0, 10)));
     }
     this.audio.play('perk');
     if (r.globalQualifies) {

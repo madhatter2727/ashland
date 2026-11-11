@@ -1,558 +1,290 @@
+// ASHLAND — the arena. Same footprint, cover, gates and locked areas as Hordefall; the setting is a
+// grand theme park left to rot: the Palace of Hours (north), the Esplanade hotels and ticket palace
+// (south), the Midway halls and carousel (east), the Gardens and orangery (west), with the coaster's
+// steel skeleton over the skyline. Built from Poly Haven CC0 PBR sets + scanned models (see CREDITS.md).
 import * as THREE from 'three';
 import { buildSkyline } from './skyline.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { corrugated, crateWood, facade } from './textures.js';
-import { pbr } from '../assets.js';
 import { mulberry } from '../core/util.js';
 import { AREAS } from '../tuning.js';
-
-// Box geometry whose UVs tile at a fixed world density (texel size independent of box size).
-function tiledBox(w, h, d, density = 0.25) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  const uv = g.attributes.uv, n = g.attributes.normal;
-  for (let i = 0; i < uv.count; i++) {
-    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i));
-    const su = ax > 0.5 ? d : w, sv = ay > 0.5 ? d : h;
-    uv.setXY(i, uv.getX(i) * su * density, uv.getY(i) * sv * density);
-  }
-  return g;
-}
+import { Builder, Frame, P, molding, moldingRing, lathe, merge, balustrade, column, ironRailing, deadTree, pilaster } from './park/kit.js';
+import { makeMaterials, weather } from './park/materials.js';
+import { buildPalace } from './park/palace.js';
+import { buildEsplanade } from './park/esplanade.js';
+import { buildMidway, buildCarousel, stall } from './park/midway.js';
+import { buildGardens } from './park/gardens.js';
 
 export const ARENA = { half: 36, cell: 1 };
-
-const NOISE_GLSL = /* glsl */ `
-  float gh3(vec3 p){ return fract(sin(dot(p, vec3(17.13, 113.71, 51.37))) * 43758.5453); }
-  float gn3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
-    return mix(mix(mix(gh3(i), gh3(i+vec3(1,0,0)), f.x), mix(gh3(i+vec3(0,1,0)), gh3(i+vec3(1,1,0)), f.x), f.y),
-               mix(mix(gh3(i+vec3(0,0,1)), gh3(i+vec3(1,0,1)), f.x), mix(gh3(i+vec3(0,1,1)), gh3(i+vec3(1,1,1)), f.x), f.y), f.z); }
-  float gfbm(vec3 p){ return gn3(p) * 0.55 + gn3(p * 2.1) * 0.3 + gn3(p * 4.3) * 0.15; }`;
-// world-space position varying that also works for InstancedMesh
-function worldPosVarying(sh) {
-  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
-    .replace('#include <project_vertex>', `#include <project_vertex>
-      vec4 wp4 = vec4(transformed, 1.0);
-      #ifdef USE_INSTANCING
-        wp4 = instanceMatrix * wp4;
-      #endif
-      vWP = (modelMatrix * wp4).xyz;`);
-  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;' + NOISE_GLSL);
-}
-// grime: soot/dirt rising from the street, rain streaks running down, random water stains
-function grime(mat, { amount = 1, streaks = 1 } = {}) {
-  mat.onBeforeCompile = (sh) => {
-    worldPosVarying(sh);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-      {
-        float h = vWP.y;
-        float n = gfbm(vWP * 0.45);
-        float base = smoothstep(2.2, 0.0, h + n * 1.2) * 0.55;
-        float st = gn3(vec3(vWP.x * 3.1 + vWP.z * 3.1, h * 0.12, 0.0));
-        float streak = smoothstep(0.62, 0.95, st) * (0.35 + 0.65 * gn3(vWP * 0.2)) * ${streaks.toFixed(2)};
-        float blot = smoothstep(0.6, 0.85, gfbm(vWP * 0.18 + 3.0)) * 0.35;
-        float g = clamp((base + streak * 0.45 + blot) * ${amount.toFixed(2)}, 0.0, 0.85);
-        diffuseColor.rgb *= 1.0 - g * vec3(0.72, 0.75, 0.78);
-      }`);
-  };
-  return mat;
-}
-// puddles: smooth dark mirror-like water pooled in low spots of the asphalt
-function puddles(mat) {
-  mat.onBeforeCompile = (sh) => {
-    worldPosVarying(sh);
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <map_fragment>', `#include <map_fragment>
-        float pud = smoothstep(0.68, 0.72, gfbm(vec3(vWP.xz * 0.11, 1.7)) + gn3(vec3(vWP.xz * 0.9, 4.0)) * 0.05);
-        float wetEdge = smoothstep(0.58, 0.68, gfbm(vec3(vWP.xz * 0.11, 1.7)));
-        diffuseColor.rgb *= mix(1.0, 0.72, wetEdge);
-        diffuseColor.rgb *= mix(1.0, 0.25, pud);`)
-      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.6, wetEdge);
-        roughnessFactor = mix(roughnessFactor, 0.09, pud);`)
-      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        normal = normalize(mix(normal, normalize(vNormal), pud));`);
-  };
-  return mat;
-}
-// interior behind window openings: dark rooms, a few lit warmly, fake depth falloff
-function interiorMaterial() {
-  const m = new THREE.MeshStandardMaterial({ color: '#0b0a0a', roughness: 0.9, metalness: 0 });
-  m.onBeforeCompile = (sh) => {
-    worldPosVarying(sh);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-      {
-        vec2 cell = floor(vec2(vWP.x + vWP.z, vWP.y) / 3.0);
-        float r = gh3(vec3(cell, 7.0));
-        vec2 f = fract(vec2(vWP.x + vWP.z, vWP.y) / 3.0);
-        float vign = smoothstep(0.0, 0.35, f.y) * smoothstep(1.0, 0.6, f.y) * smoothstep(0.0, 0.3, f.x) * smoothstep(1.0, 0.7, f.x);
-        vec3 warm = mix(vec3(1.0, 0.55, 0.22), vec3(0.9, 0.75, 0.55), gh3(vec3(cell, 3.0)));
-        float lit = step(0.86, r) * (0.6 + 0.4 * gh3(vec3(cell, 11.0)));
-        float fire = step(0.975, r);
-        totalEmissiveRadiance += warm * lit * vign * 1.6 + vec3(2.5, 0.8, 0.2) * fire * vign;
-        diffuseColor.rgb *= 0.4 + 0.6 * vign;
-      }`);
-  };
-  return m;
-}
+export let PARK_MATS = null;
 
 export function buildArena(scene, quality, A) {
-  const colliders = []; // {minX..maxZ, walk, mat}
-  const buckets = new Map(); // material -> geometries
-  const add = (mat, geo, x, y, z, rotY = 0) => {
-    geo.rotateY(rotY); geo.translate(x, y, z);
-    if (!buckets.has(mat)) buckets.set(mat, []);
-    buckets.get(mat).push(geo);
-  };
-  const solid = (mat, w, h, d, x, y0, z, opts = {}) => {
-    if (mat) add(mat, tiledBox(w, h, d, opts.density ?? 0.25), x, y0 + h / 2, z);
-    colliders.push({ minX: x - w / 2, maxX: x + w / 2, minY: y0, maxY: y0 + h, minZ: z - d / 2, maxZ: z + d / 2, walk: !!opts.walk, mat: opts.surface || 'concrete' });
-  };
-  const H = ARENA.half, r = mulberry(1337);
+  const B = new Builder();
+  const colliders = B.colliders;
+  const M = (PARK_MATS = makeMaterials(A));
+  const H = ARENA.half, rr = mulberry(1337);
+  const props = [];
+  const UP = new THREE.Vector3(0, 1, 0);
+  // place a scanned model: height = target height in metres (model is normalised: footprint centred, base on y)
+  const propAt = (id, x, y, z, rotY = 0, height = 1, o = {}) => props.push({ id, m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, rotY).multiply(o.q || new THREE.Quaternion()), new THREE.Vector3(1, 1, 1)), height, o });
+  const lights = [], fires = [];
+  const inArea = (x, z, m = 0.8) => AREAS.list.some(({ rect: [x0, z0, x1, z1] }) => x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m);
+  const ctx = { B, M, A, rr, scene, propAt, lights, quality, inArea, H };
 
-  // ---------- materials (Poly Haven CC0 PBR sets) ----------
-  const groundMat = puddles(pbr(A, 'road_damaged', { color: '#a7a19c', normalScale: 1.1 }));
-  const walkMat = grime(pbr(A, 'concrete_pavement', { color: '#b8b2aa' }), { amount: 0.6, streaks: 0 });
-  const concreteMat = grime(pbr(A, 'concrete_wall_008', { color: '#aeb0ae', normalScale: 1.2 }), { amount: 0.8 });
-  const darkConcrete = grime(pbr(A, 'concrete_wall_008', { color: '#8a837c', normalScale: 1.2 }), { amount: 1 });
-  const floorMat = pbr(A, 'damaged_concrete_floor_02', { color: '#b9b2aa', normalScale: 1.2 });
-  const brickMat = grime(pbr(A, 'red_brick_03', { color: '#c4b2a6' }), { amount: 0.9 });
-  const plasterBox = grime(pbr(A, 'plastered_wall_04', { color: '#b5a99b' }), { amount: 1 });
-  const rustSteel = pbr(A, 'rusty_metal_02', { metal: true, envMapIntensity: 1.2 });
-  const shutterMat = grime(pbr(A, 'rusted_shutter', { metal: true }), { amount: 0.6, streaks: 0.5 });
-  const containerMats = [[150, 48, 34], [38, 74, 110], [40, 104, 96], [176, 112, 36]].map((col, i) => {
-    const t = corrugated({ color: col, seed: 3 + i });
-    return grime(new THREE.MeshStandardMaterial({ ...t, metalness: 0.55, roughness: 1, normalScale: new THREE.Vector2(1.4, 1.4) }), { amount: 0.7 });
-  });
-  const crate = new THREE.MeshStandardMaterial({ ...crateWood(), roughness: 0.85 });
-  const darkSteel = pbr(A, 'rusty_metal_02', { metal: true, color: '#5a5550', envMapIntensity: 1 });
-  const interior = interiorMaterial();
-
-  // ---------- ground: cracked wet asphalt, pavements along the buildings ----------
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), groundMat);
-  ground.geometry.attributes.uv.array.forEach((v, i, a) => (a[i] = v * 220 / 5));
-  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
-  scene.add(ground);
+  // ---------- ground: wet herringbone brick, marble plaza, gardens of gravel and trampled beds ----------
+  for (const m of [M.marbleFloor, M.gravel, M.leaves, M.mud, M.mossCobble]) { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -2; }
+  const plane = (mat, x0, x1, z0, z1, y = 0) => { const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0, Math.max(1, Math.round((x1 - x0) / 6)), Math.max(1, Math.round((z1 - z0) / 6))); g.rotateX(-Math.PI / 2); g.translate((x0 + x1) / 2, y, (z0 + z1) / 2); B.add(mat, g); };
+  plane(M.paving, -110, 110, -110, 110);
   colliders.push({ minX: -200, maxX: 200, minY: -1, maxY: 0, minZ: -200, maxZ: 200, walk: true, mat: 'concrete', ground: true });
-  const gate = 7;
-  for (const s of [-1, 1]) for (const ax of ['x', 'z']) for (const seg of [[-H - 8, -gate / 2 - 0.6], [gate / 2 + 0.6, H + 8]]) {
-    const len = seg[1] - seg[0], c = (seg[0] + seg[1]) / 2, wdt = 2.6, pos = s * (H - wdt / 2);
-    const g = tiledBox(ax === 'x' ? len : wdt, 0.07, ax === 'x' ? wdt : len, 1 / 2.5);
-    add(walkMat, g, ax === 'x' ? c : pos, 0.035, ax === 'x' ? pos : c);
-    const curb = tiledBox(ax === 'x' ? len : 0.25, 0.13, ax === 'x' ? 0.25 : len, 1 / 2);
-    add(concreteMat, curb, ax === 'x' ? c : s * (H - wdt), 0.065, ax === 'x' ? s * (H - wdt) : c);
+  // formal marble plaza round the bandstand, and a marble walk along the palace front
+  plane(M.marbleFloor, -9, 9, -12, 12, 0.002);
+  plane(M.marbleFloor, -20, 20, -35.9, -29, 0.002);
+  const curb = (x0, x1, z0, z1, h = 0.12, mat = M.marbleTrim) => { for (const [a0, a1, b0, b1] of [[x0, x1, z0, z0 + 0.22], [x0, x1, z1 - 0.22, z1], [x0, x0 + 0.22, z0, z1], [x1 - 0.22, x1, z0, z1]]) { const g = new THREE.BoxGeometry(a1 - a0, h, b1 - b0); g.translate((a0 + a1) / 2, h / 2, (b0 + b1) / 2); B.add(mat, g); } };
+  curb(-9, 9, -12, 12, 0.06);
+  // gardens (west): gravel walks with sunken lawn beds gone to mud and leaf litter
+  plane(M.gravel, -35.9, -9.5, -26.8, 35.9, 0.003);
+  for (const [x0, x1, z0, z1, mat] of [[-34, -23.5, 8.5, 20, M.mud], [-20.5, -11, 18.5, 33.5, M.leaves], [-34, -23.5, 23, 33.5, M.leaves], [-20.5, -11, 5, 15.5, M.mud], [-20.5, -11, -25, -11, M.leaves], [-34, -23.5, -25, -8.5, M.mud]]) {
+    plane(mat, x0, x1, z0, z1, 0.006); curb(x0, x1, z0, z1, 0.16, M.stoneDark);
   }
+  // midway (east): mossy setts in a ring round the carousel
+  { const g = new THREE.CircleGeometry(6.2, 48); g.rotateX(-Math.PI / 2); g.translate(15.7, 0.004, 9); B.add(M.mossCobble, g); }
 
-  // ---------- modular facade kit (Poly Haven "modular urban apartments facade") ----------
-  const kit = A.models.modular_urban_apartments_facade.scene;
-  kit.updateMatrixWorld(true);
-  const glassMat = new THREE.MeshStandardMaterial({ color: '#1a2128', roughness: 0.04, metalness: 0.9, transparent: true, opacity: 0.55, envMapIntensity: 1.6, depthWrite: false });
-  const pieces = new Map(); // name -> [{geo, mat, local}]
-  kit.traverse((o) => {
-    if (!o.isMesh) return;
-    const node = o.userData.o ? o : o.parent;
-    const name = node.name, oo = node.userData.o || [0, 0, 0];
-    // pieces are authored with their origin at the right/bottom corner of a 3 m module (kept in extras through quantization)
-    const local = new THREE.Matrix4().makeTranslation(-oo[0], -oo[1], -oo[2]).multiply(o.matrixWorld);
-    let mat = o.material;
-    if (/glass/.test(mat.name)) mat = glassMat;
-    else if (/plaster/.test(mat.name) && !mat.userData.g) { mat.userData.g = true; grime(mat, { amount: 1 }); }
-    else if (!mat.userData.g) { mat.userData.g = true; grime(mat, { amount: 0.55, streaks: 0.3 }); }
-    if (!pieces.has(name)) pieces.set(name, []);
-    pieces.get(name).push({ geo: o.geometry, mat, local, glass: mat === glassMat });
-  });
-  const inst = new Map(); // name -> [{m: Matrix4, c: Color, noGlass}]
-  const put = (name, m, color = null, opt = {}) => {
-    if (!pieces.has(name)) return;
-    if (!inst.has(name)) inst.set(name, []);
-    inst.get(name).push({ m: m.clone(), c: color, ...opt });
-  };
-  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
-  const props = []; // [modelId, matrix, castShadow]
-  const propAt = (id, x, y, z, rotY = 0, s = 1, sy = s) => props.push([id, new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, rotY), new THREE.Vector3(s, sy, s))]);
-  const tints = ['#d8cbb8', '#9fb0bf', '#bfc8cc', '#d6c2a8', '#8f9aa6', '#e2d6c8', '#a9aaa2', '#c7b6a8', '#b4c2c8', '#7f8a8e'].map((c) => new THREE.Color(c));
-  const winSets = [
-    ['wall_window_centered_large_01', 'window_centered_large_01'], ['wall_window_centered_large_02', 'window_centered_large_02'],
-    ['wall_window_centered_small_01', 'window_centered_small_01'], ['wall_window_centered_small_02', 'window_centered_small_02'],
-    ['wall_window_centered_double_01', 'window_centered_double_01'], ['wall_window_centered_double_02', 'window_centered_double_02'],
-    ['wall_window_offset_small_01', 'window_offset_small_01'], ['wall_window_offset_small_03', 'window_offset_small_03'],
-  ];
-  const doorSets = [['wall_door_centered_large_01', 'door_centered_large_01'], ['wall_door_centered_small_01', 'door_centered_small_01'], ['wall_door_offset_small_01', 'door_offset_small_01']];
-  const soot = [];
-  const balconies = [];
-  // one facade: origin = left end at street level, a = along (unit), n = outward normal, cols of 3 m, floors of 3 m
-  const facadeRun = (o, a, n, width, floors, seed) => {
-    const rr = mulberry(seed);
-    const cols = Math.max(1, Math.round(width / 3)), sx = width / (cols * 3);
-    Q.setFromRotationMatrix(new THREE.Matrix4().makeBasis(a, UP, n));
-    const tint = tints[Math.floor(rr() * tints.length)];
-    const style = winSets[Math.floor(rr() * winSets.length)], style2 = winSets[Math.floor(rr() * winSets.length)];
-    const balc = rr() < 0.45;
-    const shop = rr() < 0.55;
-    const at = (col, y, ox = 0, oz = 0) => P.copy(o).addScaledVector(a, (col + 1) * 3 * sx + ox).addScaledVector(n, oz).setY(y);
-    for (let f = 0; f < floors; f++) {
-      for (let c = 0; c < cols; c++) {
-        M.compose(at(c, f * 3), Q, S.set(sx, 1, 1));
-        if (f === 0) {
-          if (shop && c % 2 === 0 && c < cols) { // shopfront with a rusted roller shutter
-            put('wall_door_centered_large_01', M, tint);
-            const p = at(c, 0, -1.5 * sx, 0.02); props.push([rr() < 0.5 ? 'rollershutter_door#rollershutter_door' : 'rollershutter_door#rollershutter_door_graffiti', new THREE.Matrix4().compose(p.clone(), Q.clone(), new THREE.Vector3(sx * 1.95, 1.06, 1))]);
-          } else if (rr() < 0.35) { const d = doorSets[Math.floor(rr() * doorSets.length)]; put(d[0], M, tint); put(d[1], M); }
-          else { const w = winSets[Math.floor(rr() * 4)]; put(w[0], M, tint); put(w[1], M, null, { broken: rr() < 0.35 }); }
-          continue;
-        }
-        let set = rr() < 0.75 ? style : style2;
-        if (balc && c % 3 === 1 && rr() < 0.7) {
-          set = rr() < 0.5 ? ['wall_door_window_small_01', 'door_window_small_01'] : ['wall_door_window_small_05', 'door_window_small_05'];
-          balconies.push({ p: at(c, f * 3, -1.5 * sx, 0).clone(), q: Q.clone(), w: 2.6 * sx });
-        }
-        if (rr() < 0.06) { put('wall_standard_standard_01', M, tint); continue; }
-        put(set[0], M, tint);
-        const broken = rr() < 0.22;
-        put(set[1], M, null, { broken });
-        if (broken && rr() < 0.6) soot.push({ p: at(c, f * 3 + 2.0, -1.5 * sx, 0.03).clone(), q: Q.clone() });
-        // AC units under some windows, hanging off the facade
-        if (rr() < 0.13 && f < floors) props.push([rr() < 0.5 ? 'exterior_aircon_unit#exterior_aircon_unit' : 'exterior_aircon_unit#exterior_aircon_unit_rusted', new THREE.Matrix4().compose(at(c, f * 3 - 0.35, -1.5 * sx, 0.2).clone(), Q.clone(), new THREE.Vector3(0.9, 0.9, 0.9))]);
-      }
-      // floor band between storeys
-      if (f > 0) for (let c = 0; c < cols; c++) put('cornice_standard_standard_01', M.compose(at(c, f * 3 - 0.1), Q, S.set(sx, 1, 1)), tint);
-    }
-    for (let c = 0; c < cols; c++) {
-      put('base_standard_01', M.compose(at(c, 0), Q, S.set(sx, 0.8, 1)), tint);
-      put('crown_standard_standard_01', M.compose(at(c, floors * 3), Q, S.set(sx, 1, 1)), tint);
-    }
-    // corner piers
-    for (const e of [0, cols * 3 * sx + 0.12]) for (let f = 0; f < floors; f++) put('wall_pier_standard_01', M.compose(P.copy(o).addScaledVector(a, e).setY(f * 3), Q, S.set(1, 1, 1)), tint);
-    // downpipe at one end
-    if (rr() < 0.7) {
-      const end = rr() < 0.5 ? 0.35 : cols * 3 * sx - 0.35, hgt = floors * 3 + 0.6;
-      const pipe = new THREE.CylinderGeometry(0.06, 0.06, hgt, 8);
-      pipe.applyMatrix4(new THREE.Matrix4().compose(P.copy(o).addScaledVector(a, end).addScaledVector(n, 0.12).setY(hgt / 2), new THREE.Quaternion(), new THREE.Vector3(1, 1, 1)));
-      if (!buckets.has(rustSteel)) buckets.set(rustSteel, []); buckets.get(rustSteel).push(pipe);
-    }
-    // fire escape zig-zag on some tall blocks
-    if (floors >= 4 && rr() < 0.35 && cols >= 3) fireEscapes.push({ o: o.clone(), a: a.clone(), n: n.clone(), floors, col: 1 + Math.floor(rr() * (cols - 2)), sx });
-  };
-  const fireEscapes = [];
-
-  // ---------- perimeter buildings with four gates ----------
-  const bodyMats = [brickMat, plasterBox, concreteMat];
-  let bseed = 1;
-  const sideRun = (fixed, axis, from, to) => {
-    let p = from;
-    while (p < to - 0.5) {
-      let len = [6, 9, 9, 12, 12, 15][Math.floor(r() * 6)];
-      if (to - p - len < 5) len = to - p;
-      const floors = 3 + Math.floor(r() * 4), h = floors * 3 + 0.75, depth = 8;
-      const cx = p + len / 2, sgn = Math.sign(fixed), inset = 0.45;
-      const body = bodyMats[Math.floor(r() * bodyMats.length)];
-      // collider covers the full block; the visible body sits a little behind the facade plane
-      solid(null, axis === 'x' ? len : depth, h, axis === 'x' ? depth : len, axis === 'x' ? cx : fixed + sgn * depth / 2, 0, axis === 'x' ? fixed + sgn * depth / 2 : cx, { surface: 'concrete' });
-      const bd = depth - inset;
-      if (axis === 'x') add(body, tiledBox(len, h, bd, 1 / 3), cx, h / 2, fixed + sgn * (inset + bd / 2));
-      else add(body, tiledBox(bd, h, len, 1 / 3), fixed + sgn * (inset + bd / 2), h / 2, cx);
-      // dark interiors behind the openings
-      const ip = new THREE.PlaneGeometry(len, h - 0.75);
-      if (axis === 'x') { ip.rotateY(sgn > 0 ? Math.PI : 0); ip.translate(cx, (h - 0.75) / 2, fixed + sgn * (inset - 0.02)); }
-      else { ip.rotateY(sgn > 0 ? -Math.PI / 2 : Math.PI / 2); ip.translate(fixed + sgn * (inset - 0.02), (h - 0.75) / 2, cx); }
-      if (!buckets.has(interior)) buckets.set(interior, []); buckets.get(interior).push(ip);
-      // facade faces the arena (outward normal = -sgn on the fixed axis)
-      const n = axis === 'x' ? new THREE.Vector3(0, 0, -sgn) : new THREE.Vector3(-sgn, 0, 0);
-      const a = new THREE.Vector3().crossVectors(UP, n);
-      const startAlong = a.x + a.z > 0 ? p : p + len; // left end when looking at the facade
-      const o = axis === 'x' ? new THREE.Vector3(startAlong, 0, fixed) : new THREE.Vector3(fixed, 0, startAlong);
-      facadeRun(o, a, n, len, floors, bseed++ * 7919);
-      // roof clutter for silhouette: water tank / vents
-      if (r() < 0.5) {
-        const tx = axis === 'x' ? cx + (r() - 0.5) * (len - 4) : fixed + sgn * (depth * 0.6), tz = axis === 'x' ? fixed + sgn * (depth * 0.6) : cx + (r() - 0.5) * (len - 4);
-        const tank = new THREE.CylinderGeometry(1.1, 1.1, 2.2, 14); tank.translate(tx, h + 2.0, tz);
-        add(rustSteel, tank, 0, 0, 0);
-        for (const [lx, lz] of [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) add(rustSteel, new THREE.BoxGeometry(0.12, 0.9, 0.12), tx + lx, h + 0.45, tz + lz);
-      }
-      if (r() < 0.4) add(concreteMat, tiledBox(2.4, 1.6, 2.4, 1 / 2), axis === 'x' ? cx + (r() - 0.5) * (len - 3) : fixed + sgn * 5, h + 0.8, axis === 'x' ? fixed + sgn * 5 : cx + (r() - 0.5) * (len - 3));
-      p += len;
-    }
-  };
-  for (const s of [-1, 1]) {
-    sideRun(s * H, 'x', -H - 8, -gate / 2); sideRun(s * H, 'x', gate / 2, H + 8);
-    sideRun(s * H, 'z', -H, -gate / 2); sideRun(s * H, 'z', gate / 2, H);
+  // ---------- the four edges ----------
+  buildPalace(ctx);
+  buildEsplanade(ctx);
+  // beyond the north and south gates: walled service courts (where the horde comes from), so the gate
+  // arches frame dark wet brick and a failing lamp instead of empty fog
+  for (const F of [new Frame(B, 0, -36, 0), new Frame(B, 0, 36, Math.PI)]) {
+    const z0 = -9.5, z1 = -19;
+    F.box(M.brickDeep, -11, 11, 0, 8.5, z1 - 0.8, z1);
+    for (const s of [-1, 1]) F.box(M.brickDeep, s * 11, s * 11.8, 0, 8.5, z1 - 0.8, z0);
+    F.geo(M.stoneDark, molding(P.cornice(0.6), -11.8, 11.8, 8.5, z1));
+    F.geo(M.stoneDark, molding(P.plinth(0.7), -11, 11, 0, z1));
+    for (const x of [-7, 0, 7]) { F.box(M.stoneDark, x - 1.6, x + 1.6, 0, 4.6, z1 - 0.3, z1 + 0.05); F.box(M.shutter, x - 1.3, x + 1.3, 0.1, 4.0, z1 - 0.2, z1 + 0.1); }
+    const lp = F.point(-3.5, 0, z1 + 0.6); propAt('street_lamp_02', lp.x, 0, lp.z, F.rotY, 4.6);
   }
-  // gate frames (rusted steel portals)
+  buildMidway(ctx);
+  buildGardens(ctx);
+
+  // spawn points just outside each gate
   const spawns = [];
-  for (const [x, z, rot] of [[0, -H, 0], [0, H, 0], [-H, 0, Math.PI / 2], [H, 0, Math.PI / 2]]) {
-    const dx = Math.cos(rot), dz = Math.sin(rot);
-    for (const s of [-1, 1]) {
-      const px = x + dx * s * (gate / 2 + 0.4), pz = z + dz * s * (gate / 2 + 0.4);
-      solid(rustSteel, 0.8, 7, 0.8, px, 0, pz, { surface: 'metal', density: 0.5 });
-    }
-    add(rustSteel, tiledBox(gate + 1.6, 0.8, 0.8, 0.5), x, 7.2, z, rot);
-    const out = new THREE.Vector3(x, 0, z).normalize();
-    spawns.push(new THREE.Vector3(x + out.x * 6, 0, z + out.z * 6));
-  }
+  for (const [x, z] of [[0, -H], [0, H], [-H, 0], [H, 0]]) { const out = new THREE.Vector3(x, 0, z).normalize(); spawns.push(new THREE.Vector3(x + out.x * 6, 0, z + out.z * 6)); }
 
-  // ---------- central platform with stairs (verticality) ----------
+  // ---------- central bandstand terrace (same deck, stairs and cover as before) ----------
   const PH = 2.0;
-  solid(concreteMat, 10, PH, 9, 0, 0, 0, { walk: true });
-  add(floorMat, tiledBox(10.02, 0.04, 9.02, 1 / 3), 0, PH + 0.005, 0);
-  // steel edge angle round the deck + a darker plinth band at the foot
-  for (const s2 of [-1, 1]) {
-    add(rustSteel, tiledBox(10.1, 0.12, 0.08, 1), 0, PH - 0.04, s2 * 4.53); add(rustSteel, tiledBox(0.08, 0.12, 9.1, 1), s2 * 5.03, PH - 0.04, 0);
-    add(darkConcrete, tiledBox(10.06, 0.35, 0.05, 1 / 2), 0, 0.175, s2 * 4.51); add(darkConcrete, tiledBox(0.05, 0.35, 9.06, 1 / 2), s2 * 5.01, 0.175, 0);
+  B.col(-5, 5, 0, PH, -4.5, 4.5, { walk: true });
+  { const F = new Frame(B, 0, 0, 0);
+    F.box(M.stone, -4.95, 4.95, 0, PH - 0.3, -4.45, 4.45);
+    F.geo(M.marbleTrim, moldingRing(P.plinth(0.9), 9.9, 8.9, 0));
+    F.geo(M.marbleTrim, moldingRing(P.cornice(0.55), 9.7, 8.7, PH - 0.32));
+    F.box(M.marbleFloor, -5.02, 5.02, PH - 0.04, PH, -4.52, 4.52);
+    // panels on the terrace walls: sunk marble with bronze wreaths
+    for (const [x, z, ry] of [[-2.6, 4.46, 0], [2.6, 4.46, 0], [-2.6, -4.46, Math.PI], [2.6, -4.46, Math.PI], [5.0, 0, Math.PI / 2], [-5.0, 0, -Math.PI / 2]]) {
+      const w = new THREE.TorusGeometry(0.34, 0.06, 8, 24); w.rotateY(ry); w.translate(x, 0.95, z); B.add(M.brass, w);
+    }
   }
-  solid(concreteMat, 3.2, 0.9, 0.35, -3, PH, -4.3); solid(concreteMat, 3.2, 0.9, 0.35, 3, PH, 4.3);
-  solid(concreteMat, 0.35, 0.9, 2.6, 4.8, PH, -2.6); solid(concreteMat, 0.35, 0.9, 2.6, -4.8, PH, 2.6);
-  const stairs = (x, z, dirX, dirZ, width, height, steps) => {
+  const balSeg = (x0, x1, z0, z1) => { // balustraded cover segment on the deck: keeps the old low-wall collider exactly
+    B.col(x0, x1, PH, PH + 0.9, z0, z1);
+    const along = x1 - x0 > z1 - z0, len = along ? x1 - x0 : z1 - z0;
+    const b = balustrade(len - 0.5, { h: 0.9, pitch: 0.24 }); if (!along) b.rotateY(Math.PI / 2); b.translate((x0 + x1) / 2, PH, (z0 + z1) / 2); B.add(M.marbleTrim, b);
+    for (const e of [-1, 1]) { const px = along ? (e < 0 ? x0 + 0.2 : x1 - 0.2) : (x0 + x1) / 2, pz = along ? (z0 + z1) / 2 : (e < 0 ? z0 + 0.2 : z1 - 0.2);
+      const p = merge([new THREE.BoxGeometry(0.42, 0.95, 0.42).translate(0, 0.475, 0), new THREE.BoxGeometry(0.52, 0.08, 0.52).translate(0, 0.99, 0)]); p.translate(px, PH, pz); B.add(M.marbleTrim, p);
+      propAt('brass_vase_01', px, PH + 1.03, pz, rr() * 6, 0.62); }
+  };
+  balSeg(-4.6, -1.4, -4.475, -4.125); balSeg(1.4, 4.6, 4.125, 4.475);
+  balSeg(4.625, 4.975, -3.9, -1.3); balSeg(-4.975, -4.625, 1.3, 3.9);
+  // stone stairs with marble nosings
+  const stairs = (x, z, dirX, dirZ, width, height, steps, mat = M.stone) => {
     const run = 0.5, rise = height / steps;
     for (let i = 0; i < steps; i++) {
-      const h = rise * (i + 1), d = run;
-      const along = (steps - i - 0.5) * run;
-      const cx = x + dirX * along, cz = z + dirZ * along;
-      if (dirX) solid(concreteMat, d, h, width, cx, 0, cz, { walk: true });
-      else solid(concreteMat, width, h, d, cx, 0, cz, { walk: true });
-      // worn steel nosing on each tread
-      const nx = cx + dirX * (d / 2 - 0.03), nz = cz + dirZ * (d / 2 - 0.03);
-      if (dirX) add(rustSteel, tiledBox(0.07, 0.035, width + 0.01, 1), nx, h - 0.012, nz);
-      else add(rustSteel, tiledBox(width + 0.01, 0.035, 0.07, 1), nx, h - 0.012, nz);
+      const h = rise * (i + 1), along = (steps - i - 0.5) * run, cx = x + dirX * along, cz = z + dirZ * along;
+      if (dirX) B.col(cx - run / 2, cx + run / 2, 0, h, cz - width / 2, cz + width / 2, { walk: true }); else B.col(cx - width / 2, cx + width / 2, 0, h, cz - run / 2, cz + run / 2, { walk: true });
+      const g = dirX ? new THREE.BoxGeometry(run, h, width) : new THREE.BoxGeometry(width, h, run); g.translate(cx, h / 2, cz); B.add(mat, g);
+      const nx = cx + dirX * (run / 2 - 0.04), nz = cz + dirZ * (run / 2 - 0.04);
+      const n = dirX ? new THREE.BoxGeometry(0.1, 0.05, width + 0.02) : new THREE.BoxGeometry(width + 0.02, 0.05, 0.1); n.translate(nx, h - 0.02, nz); B.add(M.marbleTrim, n);
     }
   };
-  stairs(0, -4.5, 0, -1, 3, PH, 8);
-  stairs(0, 4.5, 0, 1, 3, PH, 8);
+  stairs(0, -4.5, 0, -1, 3, PH, 8); stairs(0, 4.5, 0, 1, 3, PH, 8);
+  // the bandstand: eight fluted iron columns, a copper tent roof with a lace valance and gilt finial
+  { const cr = 4.25, ch = 4.6, oct = [];
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; oct.push([Math.cos(a) * cr * 1.08, Math.sin(a) * cr * 0.98]); }
+    for (const [x, z] of oct) { const c = column(ch, 0.11, { flutes: 8, seg: 16, capital: 'corinthian' }); c.translate(x, PH, z); B.add(M.iron, c); B.col(x - 0.15, x + 0.15, PH, PH + ch, z - 0.15, z + 0.15, { surface: 'metal' }); }
+    const roofY = PH + ch;
+    const ring = new THREE.TorusGeometry(cr * 1.03, 0.09, 6, 8); ring.rotateX(Math.PI / 2); ring.rotateY(Math.PI / 8); ring.scale(1.04, 1, 0.95); ring.translate(0, roofY + 0.05, 0); B.add(M.iron, ring);
+    const tent = lathe([[cr * 1.22, 0], [cr * 1.15, 0.12], [cr * 0.95, 0.5], [cr * 0.6, 1.5], [cr * 0.3, 2.4], [0.25, 3.0], [0, 3.05]], 8); tent.rotateY(Math.PI / 8); tent.scale(1.04, 1, 0.95); tent.translate(0, roofY + 0.1, 0); B.add(M.copper, tent);
+    const under = lathe([[0, 2.9], [cr * 1.15, 0.05]], 8); under.rotateY(Math.PI / 8); under.scale(1.04, 1, 0.95); under.translate(0, roofY + 0.05, 0); B.add(M.greenPaint, under);
+    const val = []; for (let k = 0; k < 8; k++) { const a0 = (k / 8) * Math.PI * 2 + Math.PI / 8, a1 = a0 + Math.PI / 4, p0 = [Math.cos(a0) * cr * 1.2 * 1.04, Math.sin(a0) * cr * 1.2 * 0.95], p1 = [Math.cos(a1) * cr * 1.2 * 1.04, Math.sin(a1) * cr * 1.2 * 0.95];
+      const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), r2 = ironRailing(len, 0.42, 0.09); r2.rotateZ(Math.PI); r2.rotateY(-Math.atan2(p1[1] - p0[1], p1[0] - p0[0])); r2.translate((p0[0] + p1[0]) / 2, roofY + 0.1, (p0[1] + p1[1]) / 2); val.push(r2); }
+    B.add(M.iron, merge(val));
+    const fin = lathe([[0.3, 0], [0.34, 0.15], [0.2, 0.3], [0.28, 0.55], [0.08, 0.9], [0.14, 1.1], [0.02, 1.9], [0, 2.0]], 14); fin.translate(0, roofY + 3.0, 0); B.add(M.gold, fin);
+    // a lantern hanging in the bandstand (the one real light on the deck)
+    propAt('Lantern_01', 0, roofY + 1.3, 0, 0.4, 0.55, { hang: true });
+    const L = new THREE.PointLight('#ffb36a', 9, 13, 1.7); L.position.set(0, roofY + 1.45, 0); scene.add(L); lights.push({ light: L, base: 9, flicker: 0.12 });
+  }
 
-  // ---------- containers (cover + a climbable stack) ----------
-  const container = (x, z, rotY, mi, y0 = 0) => {
-    const L = 6.1, W = 2.44, Hc = 2.6;
-    const w = rotY ? W : L, d = rotY ? L : W;
-    add(containerMats[mi], tiledBox(w, Hc, d, 1 / 2.6), x, y0 + Hc / 2, z);
-    // corner castings, posts and top/bottom rails so it reads as a real ISO box
-    const P = 0.13, e = 0.02;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      add(rustSteel, tiledBox(P, Hc + e, P, 2), x + sx * (w / 2 - P / 2 + e), y0 + Hc / 2, z + sz * (d / 2 - P / 2 + e));
-      for (const yy of [0.09, Hc - 0.09]) add(darkSteel, tiledBox(0.18, 0.18, 0.18, 2), x + sx * (w / 2 - 0.08 + e), y0 + yy, z + sz * (d / 2 - 0.08 + e));
-    }
-    for (const yy of [0.06, Hc - 0.05]) for (const s2 of [-1, 1]) {
-      if (w > d) add(rustSteel, tiledBox(w - 0.1, 0.1, 0.06, 1), x, y0 + yy, z + s2 * (d / 2 + 0.01));
-      else add(rustSteel, tiledBox(0.06, 0.1, d - 0.1, 1), x + s2 * (w / 2 + 0.01), y0 + yy, z);
-    }
-    // door end: locking bars
-    const endX = w > d ? x + w / 2 + 0.03 : x, endZ = w > d ? z : z + d / 2 + 0.03;
-    for (const k of [-0.75, -0.3, 0.3, 0.75]) {
-      if (w > d) add(darkSteel, tiledBox(0.04, Hc - 0.3, 0.04, 1), endX, y0 + Hc / 2, z + k * d / 2);
-      else add(darkSteel, tiledBox(0.04, Hc - 0.3, 0.04, 1), x + k * w / 2, y0 + Hc / 2, endZ);
-    }
-    colliders.push({ minX: x - w / 2, maxX: x + w / 2, minY: y0, maxY: y0 + Hc, minZ: z - d / 2, maxZ: z + d / 2, walk: false, mat: 'metal', top: y0 + Hc });
-  };
-  container(-16, -8, 0, 0); container(-16, -5.4, 0, 1); container(-16, -8, 0, 2, 2.6);
-  container(17, 9, 1, 3); container(14.4, 9, 1, 0);
-  container(-12, 15, 0, 2); container(20, -15, 1, 1); container(8, -20, 0, 3);
-  container(-24, 22, 1, 0); container(24, 24, 0, 2);
-  stairs(-12.95, -5.4, 1, 0, 2.2, 2.6, 10);
+  // ---------- boarded game stalls (old container footprints: cover + the climbable stack) ----------
+  const stalls = [[-16, -8, 0, 0, 0, -1], [-16, -5.4, 0, 1, 0, 1], [-16, -8, 0, 2, 2.6, -1], [-12, 15, 0, 3, 0, 1], [20, -15, 1, 4, 0, 1], [8, -20, 0, 5, 0, -1], [-24, 22, 1, 6, 0, -1], [24, 24, 0, 7, 0, -1]];
+  for (const [x, z, rot, i, y0, cs] of stalls) stall(ctx, x, z, rot, i, y0, cs);
+  stairs(-12.95, -5.4, 1, 0, 2.2, 2.6, 10, M.boards);
+  buildCarousel(ctx, 15.7, 9);
 
-  // ---------- jersey barriers (scanned concrete road barriers, two per 3 m run) ----------
-  const barrier = (x, z, rot) => {
+  // ---------- the old viaduct (overpass line): ashlar piers, arched spans, a collapsed middle span ----------
+  { const z0 = -20.5, z1 = -13.5, dy = 6.6;
+    for (const x of [-26, -13, 13, 26]) {
+      B.col(x - 0.7, x + 0.7, 0, dy, -17.7, -16.3);
+      const F = new Frame(B, x, -17, 0);
+      F.box(M.stoneDark, -0.8, 0.8, 0, 0.6, -1.0, 1.0); F.box(M.stone, -0.7, 0.7, 0.6, dy, -0.85, 0.85);
+      F.geo(M.marbleTrim, moldingRing(P.string(1.4), 1.4, 1.7, 4.0));
+    }
+    const span = (xa, xb, wsegs) => {
+      B.col(xa, xb, dy, dy + 0.9, z0, z1);
+      for (const fz of [z1, z0]) {
+        const F = new Frame(B, 0, fz, fz > -17 ? 0 : Math.PI);
+        const sgn = fz > -17 ? 1 : -1, a = Math.min(xa, xb), b = Math.max(xa, xb);
+        const L0 = sgn > 0 ? a : -b, L1 = sgn > 0 ? b : -a;
+        const sh = new THREE.Shape(); sh.moveTo(L0, 4.0); const piers = [];
+        const segs = wsegs.map(([u, v]) => (sgn > 0 ? [u, v] : [-v, -u])).sort((m, n) => m[0] - n[0]);
+        sh.lineTo(L0, dy + 0.9); sh.lineTo(L1, dy + 0.9); sh.lineTo(L1, 4.0);
+        for (let si = segs.length - 1; si >= 0; si--) { const [s0, s1] = segs[si], r = (s1 - s0) / 2 - 0.3, cx = (s0 + s1) / 2;
+          sh.lineTo(s1, 4.0); sh.lineTo(cx + r, 4.0); for (let k = 0; k <= 12; k++) { const ang = (k / 12) * Math.PI; sh.lineTo(cx + Math.cos(ang) * r, 4.0 + Math.sin(ang) * Math.min(r, 2.2)); } sh.lineTo(s0, 4.0); }
+        sh.closePath();
+        const g = new THREE.ExtrudeGeometry(sh, { depth: 0.6, bevelEnabled: false, curveSegments: 6 }); g.translate(0, 0, -0.6); F.geo(M.stone, g);
+        F.geo(M.marbleTrim, molding(P.cornice(0.5), L0, L1, dy + 0.6, 0));
+        const rail = ironRailing(L1 - L0 - 0.4, 1.0, 0.13); rail.translate((L0 + L1) / 2, dy + 0.9, -0.25); F.geo(M.iron, rail);
+      }
+      const deck = new THREE.BoxGeometry(Math.abs(xb - xa), 0.3, z1 - z0 - 1.2); deck.translate((xa + xb) / 2, dy + 0.75, (z0 + z1) / 2); B.add(M.mossCobble, deck);
+      const soffit = new THREE.BoxGeometry(Math.abs(xb - xa), 0.6, z1 - z0 - 1.2); soffit.translate((xa + xb) / 2, dy + 0.3, (z0 + z1) / 2); B.add(M.stoneDark, soffit);
+    };
+    span(-36, -6, [[-36, -26.7], [-25.3, -13.7], [-12.3, -6.6]]); span(12, 36, [[12.6, 12.4], [13.7, 25.3], [26.7, 36]].filter(([u, v]) => v - u > 1));
+    // the fallen span: tilted deck, sheared voussoirs, ashlar blocks heaped at its foot
+    const F = new Frame(B, 1.9, -17, 0);
+    const slab = new THREE.BoxGeometry(9, 1.2, 6.6); slab.rotateZ(-0.62); slab.translate(0, 2.8, 0); F.geo(M.stoneDark, slab);
+    const top = new THREE.BoxGeometry(8.6, 0.3, 5.6); top.translate(0, 0.75, 0); top.rotateZ(-0.62); top.translate(0, 2.8, 0); F.geo(M.mossCobble, top);
+    const lip = new THREE.BoxGeometry(1.6, 1.3, 6.9); lip.rotateZ(-0.62); lip.translate(2.7, 0.75, 0); F.geo(M.stoneDark, lip);
+    const rr2 = mulberry(77), blocks = [];
+    for (let i = 0; i < 46; i++) { const w = 0.35 + rr2() * 0.55, h = 0.25 + rr2() * 0.3, d = 0.3 + rr2() * 0.5; const g = new THREE.BoxGeometry(w, h, d); g.rotateX((rr2() - 0.5) * 0.9); g.rotateZ((rr2() - 0.5) * 0.9); g.rotateY(rr2() * 6);
+      const zone = i < 26; g.translate(zone ? 3.6 + rr2() * 2.4 : -7 + rr2() * 16, zone ? h * 0.4 + rr2() * 0.5 : h * 0.4, zone ? -3.2 + rr2() * 6.4 : (rr2() < 0.5 ? -4.5 : 4.5) + (rr2() - 0.5) * 2); blocks.push(g); }
+    F.geo(M.stone, merge(blocks));
+    for (const [x0, sgn] of [[-6, 1], [12, -1]]) { const rag = []; for (let i = 0; i < 7; i++) { const g = new THREE.BoxGeometry(0.4 + rr2() * 0.5, 0.3 + rr2() * 0.4, 0.5 + rr2() * 0.6); g.rotateZ((rr2() - 0.5) * 0.5); g.translate(x0 - sgn * 0.1 + sgn * rr2() * 0.3, dy + 0.3 + rr2() * 0.6, z0 + 0.6 + i * 0.95); rag.push(g); } B.add(M.stoneDark, merge(rag)); }
+    for (let i = 0; i < 4; i++) colliders.push({ minX: -2 + i * 1.9, maxX: -0.1 + i * 1.9, minY: 0, maxY: 5.9 - i * 1.55, minZ: -20.3, maxZ: -13.7, walk: false, mat: 'concrete' });
+    propAt('weed_plant_02#weed_plant_02_b_LOD0', 5.4, 0, -18.6, 1, 0.9); propAt('nettle_plant#nettle_plant_tall_a_LOD0', 6.6, 0, -15.2, 2, 1.1);
+  }
+
+  // ---------- stone planters gone wild (old jersey-barrier cover) ----------
+  const planter = (x, z, rot) => {
     const w = rot ? 0.6 : 3, d = rot ? 3 : 0.6;
-    solid(null, w, 0.95, d, x, 0, z);
-    for (const k of [-0.75, 0.75]) propAt('concrete_road_barrier', x + (rot ? 0 : k), 0, z + (rot ? k : 0), rot ? Math.PI / 2 : 0, 1.0, 1.12);
+    B.col(x - w / 2, x + w / 2, 0, 0.95, z - d / 2, z + d / 2);
+    const F = new Frame(B, x, z, rot ? Math.PI / 2 : 0);
+    F.box(M.stone, -1.45, 1.45, 0, 0.72, -0.27, 0.27);
+    F.geo(M.marbleTrim, moldingRing(P.plinth(0.45), 2.9, 0.54, 0));
+    F.geo(M.marbleTrim, moldingRing([[0, 0], [0.05, 0], [0.07, 0.06], [0.07, 0.2], [0, 0.23]], 2.96, 0.6, 0.72));
+    F.box(M.mud, -1.38, 1.38, 0.72, 0.9, -0.22, 0.22);
+    for (let k = -1; k <= 1; k++) { const p = F.point(k * 0.95, 0.88, 0); propAt(rr() < 0.5 ? 'shrub_04' : 'nettle_plant#nettle_plant_medium_a_LOD0', p.x, p.y, p.z, rr() * 6, 0.9 + rr() * 0.7); }
   };
   [[-6, -12, 0], [6, 12, 0], [-9, 9, 1], [10, -8, 1], [-22, 2, 1], [23, -2, 1], [0, -26, 0], [0, 26, 0], [-27, -18, 0], [28, 16, 0], [13, 22, 1], [-10, -22, 1]]
-    .forEach(([x, z, rot]) => barrier(x, z, rot));
+    .forEach(([x, z, rot]) => planter(x, z, rot));
 
-  // ---------- crates ----------
-  // scanned Poly Haven crate (unit-normalised from its bounds), procedural boxes as a fallback
-  const crateBox = A.models.wooden_crate_01 && new THREE.Box3().setFromObject(A.models.wooden_crate_01.scene);
-  const crateAt = (x, y, z, s, rot) => {
-    if (crateBox) {
-      const sz = crateBox.getSize(new THREE.Vector3()), k = s / Math.max(sz.x, sz.z), ky = s / sz.y;
-      propAt('wooden_crate_01', x, y - crateBox.min.y * ky, z, rot, k, ky);
-      solid(null, s, s, s, x, y, z, { surface: 'wood' });
-    } else solid(crate, s, s, s, x, y, z, { density: 1 / s, surface: 'wood' });
-  };
+  // ---------- crates (scanned Poly Haven crate) ----------
+  const crateBox = new THREE.Box3().setFromObject(A.models.wooden_crate_01.scene), csz = crateBox.getSize(new THREE.Vector3());
+  const crateAt = (x, y, z, s, rot) => { propAt('wooden_crate_01', x, y, z, rot, s, { sx: s / Math.max(csz.x, csz.z) / (s / csz.y) }); B.col(x - s / 2, x + s / 2, y, y + s, z - s / 2, z + s / 2, { surface: 'wood' }); };
   [[-4, -15], [-3, -16.2], [7, 17], [16, -6], [-19, 12], [26, 6], [-26, -6], [4, -29]].forEach(([x, z], i) => {
-    const s = 1.1 + (i % 3) * 0.15;
-    crateAt(x, 0, z, s, (i % 2) * Math.PI / 2);
+    const s = 1.1 + (i % 3) * 0.15; crateAt(x, 0, z, s, (i % 2) * Math.PI / 2 + (rr() - 0.5) * 0.2);
     if (i % 3 === 0) crateAt(x + 0.1, s, z - 0.05, 0.9, 0.3);
   });
 
-  // ---------- broken overpass ----------
-  for (const x of [-26, -13, 13, 26]) solid(darkConcrete, 1.4, 6.6, 1.4, x, 0, -17, { surface: 'concrete' });
-  solid(darkConcrete, 30, 0.9, 7, -21, 6.6, -17); solid(darkConcrete, 24, 0.9, 7, 24, 6.6, -17);
-  add(rustSteel, tiledBox(30, 0.4, 0.3, 0.5), -21, 6.4, -13.6); add(rustSteel, tiledBox(24, 0.4, 0.3, 0.5), 24, 6.4, -13.6);
-  const fallen = tiledBox(9, 1.5, 6.6, 0.25); fallen.rotateZ(-0.62); fallen.translate(1.9, 2.8, -17);
-  add(darkConcrete, fallen, 0, 0, 0);
-  // the collapsed span reads as a thin plank from the platform: give it a broken deck edge, rebar and a rubble heap at its foot
-  { const r = mulberry(77); const lip = tiledBox(1.6, 1.3, 6.9, 0.25); lip.rotateZ(-0.62); lip.translate(4.6, 0.75, -17); add(darkConcrete, lip, 0, 0, 0);
-    for (let i = 0; i < 7; i++) { const g = new THREE.CylinderGeometry(0.022, 0.022, 0.7 + r() * 0.8, 4); g.rotateZ(-0.62 + Math.PI / 2 + (r() - 0.5) * 0.5); g.translate(5.3 + r() * 0.4, 0.2 + r() * 0.5, -20 + i); add(rustSteel, g, 0, 0, 0); }
-    for (let i = 0; i < 12; i++) { const t = (i + r()) / 12 - 0.5, g = new THREE.CylinderGeometry(0.02, 0.02, 0.5 + r() * 0.9, 4); g.rotateX(Math.PI / 2 + (r() - 0.5) * 0.5); g.translate(1.9 + Math.cos(-0.62) * t * 8.6 + (r() - 0.5) * 0.3, 2.8 + Math.sin(-0.62) * t * 8.6 + (r() - 0.5) * 0.9, -13.4 - r() * 0.3); add(rustSteel, g, 0, 0, 0); }
-    for (let i = 0; i < 14; i++) { const s = 0.25 + r() * 0.45; const g = new THREE.DodecahedronGeometry(s, 0); g.scale(1, 0.5 + r() * 0.4, 0.8 + r() * 0.4); g.rotateY(r() * 6); g.translate(5.4 + r() * 1.6, s * 0.3, -20.2 + r() * 6.4); add(darkConcrete, g, 0, 0, 0); } }
-  for (let i = 0; i < 4; i++) colliders.push({ minX: -2 + i * 1.9, maxX: -0.1 + i * 1.9, minY: 0, maxY: 5.9 - i * 1.55, minZ: -20.3, maxZ: -13.7, walk: false, mat: 'concrete' });
-  // exposed rebar sticking out of the broken deck ends
-  for (const [x0, sgn] of [[-6, 1], [12, -1]]) for (let i = 0; i < 9; i++) {
-    const g = new THREE.CylinderGeometry(0.018, 0.018, 0.6 + r() * 0.9, 4); g.rotateZ(Math.PI / 2 + (r() - 0.5) * 0.6); g.rotateY((r() - 0.5) * 0.5);
-    g.translate(x0 + sgn * 0.4, 6.4 + r() * 0.9, -20 + r() * 6); add(rustSteel, g, 0, 0, 0);
-  }
-
-  // ---------- rubble + debris ----------
-  for (let i = 0; i < 110; i++) {
-    const s = 0.12 + r() * 0.5;
-    const g = new THREE.DodecahedronGeometry(s, 0);
-    g.scale(1, 0.45 + r() * 0.5, 0.8 + r() * 0.4);
-    g.rotateY(r() * 6); g.rotateX(r() * 0.5);
-    let x = (r() * 2 - 1) * (H - 2), z = (r() * 2 - 1) * (H - 2);
-    if (Math.abs(x) < 6 && Math.abs(z) < 8) x += 9;
-    // piles at the foot of buildings and under the broken overpass
-    if (i < 40) { const side = Math.floor(r() * 4); const t = (r() * 2 - 1) * (H - 4); [x, z] = side === 0 ? [t, -H + 0.8 + r() * 2] : side === 1 ? [t, H - 0.8 - r() * 2] : side === 2 ? [-H + 0.8 + r() * 2, t] : [H - 0.8 - r() * 2, t]; }
-    else if (i < 55) { x = -2 + r() * 8; z = -20 + r() * 6; }
-    g.translate(x, s * 0.2, z);
-    add(i % 3 ? darkConcrete : brickMat, g, 0, 0, 0);
-  }
-
-  // ---------- street props ----------
-  const lights = [];
-  const lampPost = (x, z, rot) => {
-    propAt('street_lamp_01', x, 0, z, rot, 1.65);
-    colliders.push({ minX: x - 0.15, maxX: x + 0.15, minY: 0, maxY: 6.3, minZ: z - 0.15, maxZ: z + 0.15, walk: false, mat: 'metal' });
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 4.2, 2.4) }));
-    const hx = x + Math.sin(rot) * 0.35 * 1.65, hz = z + Math.cos(rot) * 0.35 * 1.65;
-    head.position.set(hx, 6.05, hz); scene.add(head);
-    const L = new THREE.PointLight('#ffad52', 26, 22, 1.6);
-    L.position.set(hx, 5.8, hz); scene.add(L); lights.push({ light: L, base: 26, flicker: 0.02, head });
+  // ---------- cast-iron lamp standards (4 real lights + unlit / dying ones along the walks) ----------
+  const lampPost = (x, z, rot, lit, real) => {
+    const post = lathe([[0.26, 0], [0.26, 0.12], [0.2, 0.18], [0.21, 0.5], [0.15, 0.58], [0.12, 0.9], [0.14, 1.0], [0.085, 1.1], [0.075, 3.4], [0.11, 3.48], [0.08, 3.56], [0.065, 4.3], [0.12, 4.38], [0, 4.4]], 16);
+    post.translate(x, 0, z); B.add(M.iron, post);
+    const arm = []; for (const s of [-1, 1]) { const c = new THREE.TorusGeometry(0.32, 0.025, 6, 16, Math.PI); c.rotateY(rot); c.translate(x + Math.sin(rot + s * Math.PI / 2) * 0.32, 4.05, z + Math.cos(rot + s * Math.PI / 2) * 0.32); arm.push(c); }
+    const bar = new THREE.BoxGeometry(1.35, 0.05, 0.05); bar.rotateY(rot + Math.PI / 2); bar.translate(x, 4.36, z); arm.push(bar); B.add(M.iron, merge(arm));
+    B.col(x - 0.2, x + 0.2, 0, 4.4, z - 0.2, z + 0.2, { surface: 'metal' });
+    for (const s of [-1, 1]) {
+      const hx = x + Math.sin(rot + Math.PI / 2) * 0.62 * s, hz = z + Math.cos(rot + Math.PI / 2) * 0.62 * s;
+      propAt('Lantern_01', hx, 3.7, hz, rot, 0.62, { hang: true });
+      if (lit && (s > 0 || lit > 1)) {
+        const glow = null; // the bloom pass makes the halo from the bulb itself
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 4.2, 2.4) })); head.position.set(hx, 3.45, hz); scene.add(head);
+        if (real && s > 0) { const L = new THREE.PointLight('#ffad52', 22, 20, 1.6); L.position.set(hx, 3.4, hz); scene.add(L); lights.push({ light: L, base: 22, flicker: 0.04, head }); }
+        else lights.push({ light: { position: head.position, intensity: 0, color: new THREE.Color() }, base: 0, flicker: 0, head, glow, fake: true });
+      }
+    }
   };
-  lampPost(-9, 6, 0); lampPost(10, -5, Math.PI); lampPost(-20, -26, 0); lampPost(21, 20, Math.PI);
-  const fires = [];
-  const barrel = (x, z) => {
-    propAt('barrel_03', x, 0, z, r() * 6, 1.0);
-    colliders.push({ minX: x - 0.32, maxX: x + 0.32, minY: 0, maxY: 0.9, minZ: z - 0.32, maxZ: z + 0.32, walk: false, mat: 'metal' });
-    const L = new THREE.PointLight('#ff6a1c', 14, 12, 1.8);
-    L.position.set(x, 1.4, z); scene.add(L);
-    lights.push({ light: L, base: 14, flicker: 0.35 });
+  lampPost(-9, 6, 0, 2, true); lampPost(10, -5, Math.PI, 2, true); lampPost(-20, -26, 0, 1, true); lampPost(21, 20, Math.PI, 1, true);
+  for (const [x, z, lit] of [[-9, -12.5, 1], [9, 12.6, 0], [-31, -7, 0], [-30, 15.5, 1], [-6.5, 30, 1], [6.5, 31, 0], [31, -10, 1], [30, 2.5, 0], [-9.2, 23, 0], [17, -27, 1], [-14.5, -27.5, 0]]) if (!inArea(x, z, 1)) lampPost(x, z, Math.abs(x) > Math.abs(z) ? Math.PI / 2 : 0, lit, false);
+
+  // ---------- iron braziers (the old burning barrels: same spots, same fire) ----------
+  const brazier = (x, z) => {
+    const bowl = lathe([[0, 0.55], [0.16, 0.56], [0.3, 0.62], [0.36, 0.72], [0.38, 0.86], [0.42, 0.9], [0.4, 0.93], [0.33, 0.9], [0.3, 0.8], [0.2, 0.7], [0, 0.68]], 20); bowl.translate(x, 0, z); B.add(M.iron, bowl);
+    const legs = []; for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI * 2; const c = new THREE.CatmullRomCurve3([new THREE.Vector3(Math.cos(a) * 0.34, 0, Math.sin(a) * 0.34), new THREE.Vector3(Math.cos(a) * 0.22, 0.35, Math.sin(a) * 0.22), new THREE.Vector3(Math.cos(a) * 0.3, 0.62, Math.sin(a) * 0.3), new THREE.Vector3(Math.cos(a) * 0.4, 0.94, Math.sin(a) * 0.4)]); const t = new THREE.TubeGeometry(c, 10, 0.025, 5); t.translate(x, 0, z); legs.push(t); }
+    B.add(M.iron, merge(legs));
+    const coals = new THREE.CircleGeometry(0.3, 16); coals.rotateX(-Math.PI / 2); coals.translate(x, 0.84, z); B.add(M.dark, coals);
+    colliders.push({ minX: x - 0.36, maxX: x + 0.36, minY: 0, maxY: 0.95, minZ: z - 0.36, maxZ: z + 0.36, walk: false, mat: 'metal' });
+    const L = new THREE.PointLight('#ff6a1c', 14, 12, 1.8); L.position.set(x, 1.4, z); scene.add(L); lights.push({ light: L, base: 14, flicker: 0.35 });
     fires.push(new THREE.Vector3(x, 0.92, z));
   };
-  barrel(-5, 10.5); barrel(14, -13); barrel(-18, -14); barrel(17, 14);
-  // abandoned cars under tarps along the pavements
-  const car = (x, z, rot) => {
-    propAt('covered_car', x, 0, z, rot, 1);
-    const w = Math.abs(Math.sin(rot)) > 0.5 ? 4.4 : 1.8, d = Math.abs(Math.sin(rot)) > 0.5 ? 1.8 : 4.4;
-    colliders.push({ minX: x - w / 2, maxX: x + w / 2, minY: 0, maxY: 1.35, minZ: z - d / 2, maxZ: z + d / 2, walk: false, mat: 'metal' });
+  brazier(-5, 10.5); brazier(14, -13); brazier(-18, -14); brazier(17, 14);
+
+  // ---------- great stone urns + bronze busts along the edges (old parked-car cover) ----------
+  const urn = (x, z) => {
+    const p = merge([new THREE.BoxGeometry(1.3, 0.25, 1.3).translate(0, 0.125, 0), new THREE.BoxGeometry(1.0, 0.8, 1.0).translate(0, 0.65, 0), new THREE.BoxGeometry(1.2, 0.12, 1.2).translate(0, 1.11, 0)]); p.translate(x, 0, z); B.add(M.stone, p);
+    const u = lathe([[0, 0], [0.32, 0], [0.34, 0.08], [0.2, 0.16], [0.17, 0.3], [0.3, 0.42], [0.58, 0.62], [0.66, 0.85], [0.6, 0.98], [0.7, 1.04], [0.66, 1.1], [0.5, 1.06], [0, 1.0]], 28); u.translate(x, 1.17, z); B.add(M.marble, u);
+    B.col(x - 0.65, x + 0.65, 0, 1.35, z - 0.65, z + 0.65);
+    propAt(rr() < 0.5 ? 'nettle_plant#nettle_plant_tall_b_LOD0' : 'shrub_04', x, 2.05, z, rr() * 6, 0.9 + rr() * 0.6);
   };
-  car(-20, 31.6, Math.PI / 2 + 0.06); car(12, 31.8, -Math.PI / 2); car(-9, -31.7, Math.PI / 2 - 0.08); car(25, -31.6, Math.PI / 2);
-  car(31.6, -25, 0.05); car(31.8, 11, Math.PI); car(-31.6, 27, 0); car(-31.7, -12, Math.PI + 0.1);
-  // small clutter (no collision)
-  const clutter = [['trashbag', 0.9], ['old_tyre', 1], ['water_manhole_cover', 1], ['wooden_crate_01', 1], ['utility_box_01', 1], ['metal_trash_can', 0.8], ['fire_hydrant', 1]];
-  const spots = [[-33.4, 18], [-33.2, -24], [33.3, 22], [33.5, -6], [18, 33.4], [-26, 33.2], [6, -33.4], [-30, -33.3], [29, -33.2], [-5, 33.5], [33.4, 30], [-33.5, 4]];
-  const inArea = (x, z, m = 0.8) => AREAS.list.some(({ rect: [x0, z0, x1, z1] }) => x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m);
-  spots.forEach(([x, z], i) => {
-    if (inArea(x, z)) return; // M13: kept clear for the locked areas
-    const [id, s] = clutter[i % clutter.length];
-    const rot = Math.abs(x) > Math.abs(z) ? (x > 0 ? -Math.PI / 2 : Math.PI / 2) : (z > 0 ? Math.PI : 0);
-    propAt(id, x, 0, z, rot + (r() - 0.5) * 0.4, s);
-    if (id === 'trashbag') { propAt('trashbag', x + 0.6, 0, z + 0.3, r() * 6, 0.8); propAt('trashbag', x - 0.4, 0.35, z + 0.1, r() * 6, 0.7); }
-    if (id === 'utility_box_01' || id === 'metal_trash_can') colliders.push({ minX: x - 0.4, maxX: x + 0.4, minY: 0, maxY: 1.1, minZ: z - 0.4, maxZ: z + 0.4, walk: false, mat: 'metal' });
-  });
-  for (const [x, z] of [[-6, 20], [14, 2], [-20, -2], [2, -11], [22, -24], [-14, 28]]) propAt('water_manhole_cover', x, 0.0, z, r() * 6, 1);
-  for (const [x, z] of [[-12, 17.5], [9.5, -22], [-22.5, 19.5], [19, 10.8], [-2.2, 6]]) propAt('old_tyre', x, 0.08, z, r() * 6, 1);
+  for (const [x, z] of [[-20, 31.6], [12, 31.8], [-9, -31.7], [25, -31.6], [31.6, -25], [31.8, 11], [-31.6, 27], [-31.7, -12]]) if (!inArea(x, z)) urn(x, z);
 
-  // ---------- balconies (slab + railing) + soot above burned-out windows ----------
-  const railMat = rustSteel;
-  for (const b of balconies) {
-    if (b.p.y < 4.6 && inArea(b.p.x, b.p.z, 1.6)) continue; // M13: first-floor balconies would poke into the Underpass / over the Depot roof
-    const slab = tiledBox(b.w, 0.14, 1.05, 1 / 2);
-    slab.applyMatrix4(new THREE.Matrix4().compose(b.p.clone().add(new THREE.Vector3(0, -0.07, 0).add(new THREE.Vector3(0, 0, 0.52).applyQuaternion(b.q))), b.q, new THREE.Vector3(1, 1, 1)));
-    add(concreteMat, slab, 0, 0, 0);
-    const parts = [];
-    parts.push(new THREE.BoxGeometry(b.w, 0.05, 0.05).translate(0, 1.0, 1.02));
-    parts.push(new THREE.BoxGeometry(0.05, 0.05, 1.02).translate(-b.w / 2 + 0.03, 1.0, 0.51), new THREE.BoxGeometry(0.05, 0.05, 1.02).translate(b.w / 2 - 0.03, 1.0, 0.51));
-    for (let k = 0; k <= 12; k++) parts.push(new THREE.BoxGeometry(0.022, 1.0, 0.022).translate(-b.w / 2 + 0.05 + (k / 12) * (b.w - 0.1), 0.5, 1.02));
-    const rail = mergeGeometries(parts.map((g) => g.toNonIndexed()));
-    rail.applyMatrix4(new THREE.Matrix4().compose(b.p, b.q, new THREE.Vector3(1, 1, 1)));
-    add(railMat, rail, 0, 0, 0);
+  // ---------- litter: leaves, weeds through the paving, fallen boughs ----------
+  // inside the locked areas: the Grotto's mossy rocks, ferns and a cut-glass chandelier gone dark; a saint
+  // on the Clock Terrace pedestal (dressing only: kept against walls so the old colliders/nav still hold)
+  { const rocks = ['rock_moss_set_01#rock_moss_set_01_rock01', 'rock_moss_set_01#rock_moss_set_01_rock03', 'rock_moss_set_01#rock_moss_set_01_rock05'];
+    [[35.0, 28.2], [35.1, 30.4], [26.9, 29.5], [26.9, 33.8], [31.5, 35.1], [28.3, 35.1]].forEach(([x, z], i) => propAt(rocks[i % 3], x, 0, z, i * 1.7, 0.55 + (i % 3) * 0.2, { sx: 1.6 }));
+    [[35.0, 29.2], [27.0, 31.2], [29.6, 35.0], [27.1, 35.0], [35.0, 31.6]].forEach(([x, z], i) => propAt(i % 2 ? 'fern_02#fern_02_b' : 'fern_02#fern_02_d', x, 0, z, i * 2.1, 0.7));
+    propAt('Chandelier_01', 30.6, 3.88, 31.2, 0.3, 1.1, { hang: true });
+    propAt('gothic_statue', -34.6, AREAS.list[0].roofY + 1.2, -34.6, Math.PI * 0.75, 1.7); }
+  const weedIds = ['weed_plant_02#weed_plant_02_a_LOD0', 'weed_plant_02#weed_plant_02_c_LOD0', 'weed_plant_02#weed_plant_02_e_LOD0', 'nettle_plant#nettle_plant_small_a_LOD0', 'nettle_plant#nettle_plant_small_b_LOD0', 'fern_02#fern_02_a', 'fern_02#fern_02_c'];
+  for (let i = 0; i < 90; i++) {
+    let x, z; const side = Math.floor(rr() * 4), t = (rr() * 2 - 1) * (H - 3);
+    if (i < 50) [x, z] = side === 0 ? [t, -H + 0.5 + rr() * 1.5] : side === 1 ? [t, H - 0.5 - rr() * 1.5] : side === 2 ? [-H + 0.5 + rr() * 1.5, t] : [H - 0.5 - rr() * 1.5, t];
+    else { x = (rr() * 2 - 1) * (H - 3); z = (rr() * 2 - 1) * (H - 3); }
+    if (inArea(x, z, 0.5) || (Math.abs(x) < 5.5 && Math.abs(z) < 7.5) || (Math.abs(x) < 4 && Math.abs(z) > 30)) continue;
+    if (colliders.some((c) => !c.ground && x > c.minX - 0.3 && x < c.maxX + 0.3 && z > c.minZ - 0.3 && z < c.maxZ + 0.3)) continue;
+    propAt(weedIds[i % weedIds.length], x, 0, z, rr() * 6, 0.25 + rr() * 0.45);
   }
-  const sootTex = (() => {
-    const c = document.createElement('canvas'); c.width = 128; c.height = 256; const x = c.getContext('2d');
-    for (let i = 0; i < 60; i++) {
-      const gx = 64 + (Math.random() - 0.5) * 50, gy = 200 - Math.random() * 190, rad = 14 + Math.random() * 30;
-      const g = x.createRadialGradient(gx, gy, 0, gx, gy, rad); g.addColorStop(0, `rgba(10,8,7,${0.12 + Math.random() * 0.12})`); g.addColorStop(1, 'rgba(10,8,7,0)');
-      x.fillStyle = g; x.fillRect(0, 0, 128, 256);
-    }
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-  })();
-  const sootMat = new THREE.MeshStandardMaterial({ map: sootTex, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 });
-  for (const s of soot) {
-    const g = new THREE.PlaneGeometry(2.4, 3.2); g.translate(0, 1.2, 0);
-    g.applyMatrix4(new THREE.Matrix4().compose(s.p, s.q, new THREE.Vector3(1, 1, 1)));
-    add(sootMat, g, 0, 0, 0);
-  }
-  // fire escapes: platform + railing per floor, stairs between
-  const fe = A.models.modular_fire_escape.scene; fe.updateMatrixWorld(true);
-  const feParts = {};
-  fe.traverse((o) => { if (o.isMesh) { const nm = o.parent && /modular_fire_escape_/.test(o.parent.name) ? o.parent.name : o.name; (feParts[nm] = feParts[nm] || []).push(o); } });
-  const feBox = (nm) => { const b = new THREE.Box3(); for (const o of feParts[nm] || []) b.expandByObject(o); return b; };
-  const fePiece = (nm, mtx) => { for (const o of feParts[nm] || []) { const g = o.geometry.clone().applyMatrix4(o.matrixWorld).applyMatrix4(mtx); if (!buckets.has(o.material)) buckets.set(o.material, []); buckets.get(o.material).push(g); } };
-  const plat = feBox('modular_fire_escape_platform_middle'), rail = feBox('modular_fire_escape_railing_middle'), st = feBox('modular_fire_escape_stairs');
-  for (const F of fireEscapes) {
-    const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(F.a, UP, F.n));
-    const cxp = F.o.clone().addScaledVector(F.a, (F.col + 0.5) * 3 * F.sx).addScaledVector(F.n, 0.78);
-    for (let f = 1; f < F.floors; f++) {
-      const y = f * 3 - 0.05;
-      if (f === 1 && inArea(cxp.x, cxp.z, 1.6)) continue;
-      const base = new THREE.Matrix4().compose(cxp.clone().setY(y), q, new THREE.Vector3(1, 1, 1));
-      fePiece('modular_fire_escape_platform_middle', base.clone().multiply(new THREE.Matrix4().makeTranslation(-(plat.min.x + plat.max.x) / 2, -plat.max.y, -(plat.min.z + plat.max.z) / 2)));
-      fePiece('modular_fire_escape_railing_middle', base.clone().multiply(new THREE.Matrix4().makeTranslation(-(rail.min.x + rail.max.x) / 2, -rail.min.y, -(rail.min.z + rail.max.z) / 2)));
-      if (f < F.floors - 1) fePiece('modular_fire_escape_stairs', base.clone().multiply(new THREE.Matrix4().makeScale(1, 3 / (st.max.y - st.min.y), 1)).multiply(new THREE.Matrix4().makeTranslation(-(st.min.x + st.max.x) / 2, -st.min.y, -(st.min.z + st.max.z) / 2)));
-    }
-  }
+  propAt('dead_tree_trunk_02', -27, 0, -21.5, 0.4, 0.75); colliders.push({ minX: -29, maxX: -25, minY: 0, maxY: 0.7, minZ: -22.3, maxZ: -20.7, walk: false, mat: 'wood' });
 
-  // ---------- merge static geometry per material ----------
-  for (const [mat, geos] of buckets) {
-    const list = geos.map((g) => {
-      g = g.index ? g.toNonIndexed() : g;
-      for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k);
-      if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-      return g;
-    });
-    const merged = mergeGeometries(list, false);
-    const m = new THREE.Mesh(merged, mat);
-    m.castShadow = mat !== sootMat && mat !== interior; m.receiveShadow = true;
-    scene.add(m);
-  }
-  // instanced facade pieces
-  let facadeTris = 0;
-  for (const [name, list] of inst) {
-    for (const part of pieces.get(name)) {
-      const use = part.glass ? list.filter((x) => !x.broken) : list;
-      if (!use.length) continue;
-      const im = new THREE.InstancedMesh(part.geo, part.mat, use.length);
-      use.forEach((x, i) => { im.setMatrixAt(i, M.multiplyMatrices(x.m, part.local)); if (x.c && !part.glass) im.setColorAt(i, x.c); });
-      im.castShadow = !part.glass; im.receiveShadow = true;
-      if (part.glass) im.renderOrder = 1;
-      im.computeBoundingSphere();
-      scene.add(im);
-      facadeTris += (part.geo.index ? part.geo.index.count : part.geo.attributes.position.count) / 3 * use.length;
-    }
-  }
-  // GLB props, instanced per mesh
-  const byId = new Map();
-  for (const [id, m] of props) { if (!byId.has(id)) byId.set(id, []); byId.get(id).push(m); }
-  const box = new THREE.Box3();
-  for (const [key, list] of byId) {
-    const [id, sub] = key.split('#');
+  B.flush(scene, { noShadow: new Set([M.interior, M.glass, M.marbleFloor, M.gravel, M.leaves, M.mud, M.paving]) });
+
+  // ---------- scanned models, instanced per mesh, weathered by the shared shader ----------
+  const byKey = new Map();
+  for (const p of props) { const k = p.id + (p.o.mat ? '@' + p.o.mat : ''); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(p); }
+  const box = new THREE.Box3(), Mx = new THREE.Matrix4(), wetted = new Set();
+  let propTris = 0;
+  for (const [key, list] of byKey) {
+    const [idSub, matKey] = key.split('@'); const [id, sub] = idSub.split('#');
     const g = A.models[id]; if (!g) continue;
     g.scene.updateMatrixWorld(true);
-    const root = sub ? g.scene.getObjectByName(sub) : g.scene; if (!root) continue;
-    // normalise: footprint centred on the origin, resting on y = 0
+    const root = sub ? g.scene.getObjectByName(sub) : g.scene; if (!root) { console.warn('missing node', key); continue; }
     box.setFromObject(root);
-    const off = new THREE.Matrix4().makeTranslation(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+    const size = box.getSize(new THREE.Vector3());
+    const hang = list[0].o.hang;
+    const off = new THREE.Matrix4().makeTranslation(-(box.min.x + box.max.x) / 2, hang ? -box.max.y : -box.min.y, -(box.min.z + box.max.z) / 2);
     root.traverse((o) => {
       if (!o.isMesh) return;
-      const im = new THREE.InstancedMesh(o.geometry, o.material, list.length);
+      let mat = matKey ? M[matKey] : o.material;
+      if (!matKey && !wetted.has(mat)) { wetted.add(mat); if (!/leaf|leaves|fern|nettle|weed|shrub|glass/i.test(mat.name + ' ' + id)) weather(mat, { grime: 0.5, streaks: 0.4, wet: 0.5, height: 1.2 }); mat.userData.density = 1; }
+      if (Object.keys(o.geometry.morphAttributes).length) { o.geometry = o.geometry.clone(); o.geometry.morphAttributes = {}; }
+      const im = new THREE.InstancedMesh(o.geometry, mat, list.length);
       const lm = new THREE.Matrix4().multiplyMatrices(off, o.matrixWorld);
-      list.forEach((m, i) => im.setMatrixAt(i, M.multiplyMatrices(m, lm)));
-      im.castShadow = !/manhole/.test(id); im.receiveShadow = true;
-      im.computeBoundingSphere();
-      scene.add(im);
+      list.forEach((p, i) => { const k = p.height / size.y, sx = p.o.sx ?? 1; im.setMatrixAt(i, Mx.copy(p.m).multiply(new THREE.Matrix4().makeScale(k * sx, k, k * sx)).multiply(lm)); });
+      im.castShadow = !/glass/i.test(mat.name); im.receiveShadow = true;
+      im.computeBoundingSphere(); scene.add(im);
+      propTris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3 * list.length;
     });
   }
 
-  // ---------- distant skyline in the haze (see skyline.js) ----------
-  const sky = buildSkyline(scene);
-
-  return { colliders, spawns, lights, fires, nav: buildNav(colliders), stats: { facadeTris, skyline: { buildings: sky.count, tris: sky.tris, drawCalls: sky.drawCalls } } };
+  // ---------- skyline: the coaster's skeleton, dead woods, far park towers ----------
+  const sky = buildSkyline(scene, M);
+  const realLights = lights.filter((l) => !l.fake);
+  return { colliders, spawns, lights: realLights, glows: lights.filter((l) => l.fake), fires, nav: buildNav(colliders), stats: { parkTris: Math.round(B.tris), propTris: Math.round(propTris), facadeTris: Math.round(B.tris), skyline: { buildings: sky.count, tris: sky.tris, drawCalls: sky.drawCalls } } };
 }
 
 // ---------- navigation grid: floor height per cell + blocked cells ----------

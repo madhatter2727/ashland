@@ -44,12 +44,13 @@ export class Drinks {
   // hooks: { audio, spend(n), owned(), buy(d), vmCamera }
   constructor(scene, colliders, hooks) {
     this.scene = scene; this.hooks = hooks; this.list = []; this._v = new THREE.Vector3(); this.humT = {};
-    const metal = new THREE.MeshStandardMaterial({ color: '#25262b', roughness: 0.45, metalness: 0.8 });
-    const chrome = new THREE.MeshStandardMaterial({ color: '#cfd3d8', roughness: 0.18, metalness: 1 });
+    // park-era cabinets: oiled dark bronze plinths and tarnished brass trim
+    const metal = new THREE.MeshStandardMaterial({ color: '#2b2219', roughness: 0.5, metalness: 0.85 });
+    const chrome = new THREE.MeshStandardMaterial({ color: '#a78445', roughness: 0.3, metalness: 1 });
     DRINKS.list.forEach((d, i) => {
       const col = new THREE.Color(d.color);
       const paint = new THREE.MeshStandardMaterial({ color: col.clone().multiplyScalar(0.55), roughness: 0.35, metalness: 0.35 });
-      const glow = new THREE.MeshStandardMaterial({ color: '#000', emissive: col, emissiveIntensity: 2.6 });
+      const glow = new THREE.MeshStandardMaterial({ color: '#000', emissive: col, emissiveIntensity: 1.5 });
       const g = new THREE.Group(); g.position.set(d.x, d.y || 0, d.z); g.rotation.y = d.ry;
       const W = 1.0, D = 0.8, H = 1.95;
       // body: each machine has its own shape (0 rounded-top cabinet, 1 slanted sci-fi front, 2 twin-column, 3 apothecary cabinet)
@@ -69,7 +70,7 @@ export class Drinks {
       const stock = new THREE.InstancedMesh(can, label, 15); let k = 0;
       for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) { const m = new THREE.Matrix4().makeTranslation(-0.36 + c * 0.155, 0.7 + r * 0.3, D / 2 - 0.12); stock.setMatrixAt(k++, m); }
       g.add(stock);
-      const back = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.22, 0.95), glow); back.material = glow.clone(); back.material.emissiveIntensity = 0.5; back.position.set(-0.05, 1.05, D / 2 - 0.2); g.add(back);
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.22, 0.95), glow); back.material = glow.clone(); back.material.emissiveIntensity = 0.22; back.position.set(-0.05, 1.05, D / 2 - 0.2); g.add(back);
       const slot = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 0.04), chrome); slot.position.set(0.42, 1.0, D / 2 + 0.02); g.add(slot);
       const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 12), glow); btn.rotation.x = Math.PI / 2; btn.position.set(0.42, 1.2, D / 2 + 0.02); g.add(btn);
       const flap = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.18, 0.05), metal); flap.position.set(0, 0.33, D / 2 + 0.02); g.add(flap);

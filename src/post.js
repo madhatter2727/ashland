@@ -63,6 +63,14 @@ export class Post {
     this.vmPass = new RenderPass(vmScene, vmCamera);
     this.vmPass.clear = false; this.vmPass.clearDepth = true;
     this.composer.addPass(this.vmPass);
+    // guard: a single NaN/Inf pixel (degenerate normal on a wet surface, specular blow-out) would otherwise be
+    // smeared over the whole frame by the bloom mips and black the screen out
+    this.sanitize = new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); bvec4 bad = bvec4(isnan(c.r) || isinf(c.r), isnan(c.g) || isinf(c.g), isnan(c.b) || isinf(c.b), false); if (any(bad)) c = vec4(0.0, 0.0, 0.0, 1.0); gl_FragColor = vec4(min(c.rgb, vec3(48.0)), c.a); }',
+    });
+    this.composer.addPass(this.sanitize);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(s.x / 2, s.y / 2), 0.55, 0.5, 0.92);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());

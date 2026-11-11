@@ -5,11 +5,13 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 // Everything the game streams in before the menu unlocks. CC0 / free-licensed sources are listed in CREDITS.md.
 const BASE = import.meta.env.BASE_URL + 'assets/';
-export const MODEL_IDS = ['modular_urban_apartments_facade', 'modular_fire_escape', 'covered_car', 'concrete_road_barrier', 'exterior_aircon_unit',
-  'street_lamp_01', 'metal_trash_can', 'trashbag', 'old_tyre', 'fire_hydrant', 'utility_box_01', 'rollershutter_door', 'modular_metal_gutter',
-  'barrel_03', 'wooden_crate_01', 'water_manhole_cover'];
-export const TEX_IDS = ['road_damaged', 'concrete_pavement', 'red_brick_03', 'plastered_wall_04', 'concrete_wall_008', 'rusted_shutter',
-  'rusty_metal_02', 'damaged_concrete_floor_02', 'rusty_corrugated_iron'];
+export const MODEL_IDS = ['large_iron_gate', 'horse_statue_01', 'gothic_statue', 'lion_head', 'marble_bust_01', 'street_lamp_02',
+  'modular_street_seating', 'shrub_02', 'shrub_04', 'nettle_plant', 'weed_plant_02', 'fern_02', 'Chandelier_01', 'rock_moss_set_01',
+  'dead_tree_trunk_02', 'ornate_mirror_01', 'Lantern_01', 'brass_vase_01', 'wooden_crate_01'];
+export const TEX_IDS = ['herringbone_pavement_03', 'marble_tiles', 'leaf_scattered_gravel', 'forest_leaves_02', 'brown_mud_leaves_01',
+  'mossy_cobblestone', 'white_sandstone_blocks_02', 'marble_01', 'red_bricks_04', 'medieval_red_brick', 'rock_wall_08', 'mossy_stone_wall',
+  'green_metal_rust', 'roof_slates_02', 'metal_plate_02', 'rusty_metal_02', 'weathered_planks', 'wood_peeling_paint_weathered',
+  'red_plaster_weathered', 'velour_velvet', 'tree_bark_03'];
 
 export async function loadAssets(onProgress = () => {}) {
   const manager = new THREE.LoadingManager();

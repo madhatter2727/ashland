@@ -16,11 +16,12 @@ function grain(g, w, h, n, a) { for (let i = 0; i < n; i++) { g.fillStyle = `rgb
 // painted steel with dents/scuffs + stencil
 function crateSkin() {
   return canvasTex(512, 256, (g, w, h) => {
-    g.fillStyle = '#3d4a33'; g.fillRect(0, 0, w, h); grain(g, w, h, 3000, 0.08);
-    g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 6; for (let x = 32; x < w; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
-    g.fillStyle = 'rgba(230,220,190,.75)'; g.font = '700 46px Teko, Impact, sans-serif'; g.textAlign = 'left'; g.fillText('SALVAGE', 26, 72);
-    g.font = '600 22px Teko, Impact, sans-serif'; g.fillText('UNIT 7 · HANDLE WITH CARE', 28, 104);
-    g.fillStyle = 'rgba(120,80,40,.4)'; for (let i = 0; i < 40; i++) g.fillRect(Math.random() * w, h - 30 + Math.random() * 30, 4 + Math.random() * 30, 2 + Math.random() * 6); // rust at the bottom
+    // an old oxblood steamer trunk from the park's lost-property office: scuffed leather, brass bands and studs
+    g.fillStyle = '#3b1713'; g.fillRect(0, 0, w, h); grain(g, w, h, 5000, 0.1);
+    g.fillStyle = 'rgba(0,0,0,.25)'; for (let i = 0; i < 70; i++) g.fillRect(Math.random() * w, Math.random() * h, 10 + Math.random() * 40, 1 + Math.random() * 2); // scuffs
+    g.fillStyle = '#7a5e2c'; for (const x of [18, w / 2 - 10, w - 38]) g.fillRect(x, 0, 20, h);
+    g.fillStyle = '#c9a25a'; for (const x of [18, w / 2 - 10, w - 38]) for (let y = 14; y < h; y += 34) { g.beginPath(); g.arc(x + 10, y, 3.5, 0, 6.3); g.fill(); }
+    g.fillStyle = 'rgba(215,190,130,.8)'; g.font = "700 30px 'Times New Roman', Georgia, serif"; g.textAlign = 'center'; g.fillText('ASHLAND', w * 0.27, 120); g.fillText('LOST PROPERTY', w * 0.73, 120);
   });
 }
 function questionTex(col) {
@@ -86,9 +87,9 @@ export class Stations {
   // ------------------------------------------------------------------ crate
   buildCrates(colliders) {
     const skin = crateSkin();
-    const body = new THREE.MeshStandardMaterial({ map: skin, roughness: 0.7, metalness: 0.45 });
-    const steel = new THREE.MeshStandardMaterial({ color: '#2a2c2f', roughness: 0.45, metalness: 0.85 });
-    const wood = new THREE.MeshStandardMaterial({ color: '#6b4a2c', roughness: 0.9, metalness: 0 });
+    const body = new THREE.MeshStandardMaterial({ map: skin, roughness: 0.62, metalness: 0.1 });
+    const steel = new THREE.MeshStandardMaterial({ color: '#6e5428', roughness: 0.42, metalness: 0.9 }); // tarnished brass fittings
+    const wood = new THREE.MeshStandardMaterial({ color: '#4a3524', roughness: 0.9, metalness: 0 });
     const W = 1.5, H = 0.62, D = 0.8, PH = 0.14;
     this.crates = CRATE.spots.map((s, i) => {
       const g = new THREE.Group(); g.position.set(s.x, 0, s.z); g.rotation.y = s.ry;
@@ -100,20 +101,20 @@ export class Stations {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.1, H + 0.02, 0.1), steel); c.position.set(sx * (W / 2 - 0.03), PH + H / 2, sz * (D / 2 - 0.03)); g.add(c); }
       for (const sx of [-1, 1]) { const h = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.012, 6, 14, Math.PI), steel); h.position.set(sx * (W / 2 + 0.01), PH + H * 0.62, 0); h.rotation.set(0, Math.PI / 2, Math.PI); g.add(h); }
       // glowing "?" panel on the front
-      const qOn = questionTex('#6fe3ff'), qOff = questionTex('#2a3036');
+      const qOn = questionTex('#ffc66e'), qOff = questionTex('#3a3226');
       const panelMat = new THREE.MeshStandardMaterial({ color: '#000', emissive: '#ffffff', emissiveMap: qOn, emissiveIntensity: 2.2, roughness: 0.4 });
       const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.36), panelMat); panel.position.set(0, PH + H / 2, D / 2 + 0.006); g.add(panel);
       // lid on a hinge at the back top edge
       const hinge = new THREE.Group(); hinge.position.set(0, PH + H, -D / 2); g.add(hinge);
       const lid = new THREE.Mesh(new THREE.BoxGeometry(W + 0.04, 0.08, D + 0.04), body); lid.position.set(0, 0.04, D / 2); lid.castShadow = true; hinge.add(lid);
-      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.07, 12), new THREE.MeshStandardMaterial({ color: '#000', emissive: '#6fe3ff', emissiveIntensity: 3 })); lamp.position.set(W / 2 - 0.16, 0.115, D / 2 + 0.2); hinge.add(lamp);
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.07, 12), new THREE.MeshStandardMaterial({ color: '#000', emissive: '#ffc66e', emissiveIntensity: 3 })); lamp.position.set(W / 2 - 0.16, 0.115, D / 2 + 0.2); hinge.add(lamp);
       // chains + padlock (dormant crates only)
       const chains = new THREE.Group();
       for (const x of [-0.42, 0.42]) { const c = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.014, 5, 30), steel); c.scale.set(1, 0.9, 1.05); c.rotation.y = Math.PI / 2; c.position.set(x, PH + H / 2 + 0.03, 0); chains.add(c); }
       const lock = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.11, 0.04), new THREE.MeshStandardMaterial({ color: '#a2864a', metalness: 0.9, roughness: 0.35 })); lock.position.set(0.42, PH + 0.18, D / 2 + 0.05); chains.add(lock);
       g.add(chains);
-      const light = this.crateLight || (this.crateLight = new THREE.PointLight('#6fe3ff', 0, 5, 2)); // one light, moved to the live crate
-      const beam = beamMesh(new THREE.Color(0.35, 0.85, 1.4)); beam.position.y = PH + H + 1.7; g.add(beam);
+      const light = this.crateLight || (this.crateLight = new THREE.PointLight('#ffc66e', 0, 5, 2)); // one light, moved to the live crate
+      const beam = beamMesh(new THREE.Color(1.4, 1.0, 0.55)); beam.position.y = PH + H + 1.7; g.add(beam);
       // "CRATE MOVED" sign (shown at the old spot, arrow pointing at the new one)
       const sign = new THREE.Group(); sign.position.set(0, PH + H + 0.75, 0); sign.visible = false; this.scene.add(sign); sign.position.add(g.position);
       this.scene.add(g);
@@ -201,7 +202,7 @@ export class Stations {
           const fresh = ok.filter((j) => this.crates[j].spot.area); // a freshly opened area pulls the crate in more often
           const n = fresh.length && Math.random() < 0.5 ? fresh[(Math.random() * fresh.length) | 0] : ok[(Math.random() * ok.length) | 0];
           C.next = n; H.audio.play('crateJam'); H.spark(new THREE.Vector3(c.spot.x, c.top + 0.4, c.spot.z), 0xff6a3a, 40);
-          H.banner('CRATE JAMMED', 'It is hauling itself to a new spot — follow the blue beam', 'crate');
+          H.banner('CRATE JAMMED', 'It is hauling itself to a new spot — follow the beam of light', 'crate');
         } else {
           this.showGun(C.result, c); C.state = 'offer'; C.t = 0; H.audio.play('crateLand', { rare: this.arsenal.all[C.result].base.rare });
         }
