@@ -1,3 +1,4 @@
+import { LIGHTING } from './world/lighting.js';
 // ============================================================================
 // ASHLAND wave pacing: every number that sets how hard a wave is lives here.
 // Player reference speeds: walk 5.4 m/s, sprint 8.4 m/s.
@@ -153,7 +154,7 @@ export const DRINKS = {
 export const AREAS = {
   spawnShare: 0.25,
   list: [
-    { id: 'roof', name: 'THE CLOCK TERRACE', blurb: 'Stone terrace before the Palace of Hours', price: 1000, kind: 'gate',
+    { id: 'roof', name: 'THE CLOCK TERRACE', blurb: 'Stone terrace beside Ashland Castle', price: 1000, kind: 'gate',
       rect: [-36, -36, -20.2, -27.2], roofY: 3.2,
       barrier: { x: -20.3, z: -30, nx: 1, nz: 0, w: 2.8 },
       spawns: [[-30, 3.2, -34.2], [-34.2, 3.2, -28.8]] },
@@ -179,7 +180,8 @@ export const AREAS = {
 export const NIGHT = {
   stage: (w) => (w <= 3 ? 0 : w >= 10 ? 1 : (w - 3) / 7),
   blend: 10,
-  sun: [3.4, 0.55], hemi: [1.1, 0.55], env: [0.5, 0.2], fog: [0.0115, 0.024], exposure: [1.05, 1.32],
+  // index 0 (sunset/day) mirrors world/lighting.js; index 1 is full night
+  sun: [LIGHTING.sunIntensity, 0.55], hemi: [LIGHTING.hemiIntensity, 0.55], env: [LIGHTING.envIntensity, 0.2], fog: [LIGHTING.fogDensity, 0.024], exposure: [LIGHTING.exposure, 1.32],
   lampBoost: 1.1, lampFlicker: 0.12, flashlight: 34, flashOn: 0.35, eyeGlow: 5.5,
 };
 

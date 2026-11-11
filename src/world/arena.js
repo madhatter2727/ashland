@@ -1,5 +1,5 @@
 // ASHLAND — the arena. Same footprint, cover, gates and locked areas as Hordefall; the setting is a
-// grand theme park left to rot: the Palace of Hours (north), the Esplanade hotels and ticket palace
+// fairy-tale theme park: Ashland Castle and its fountain (north), Main Street, the hotels and the gate
 // (south), the Midway halls and carousel (east), the Gardens and orangery (west), with the coaster's
 // steel skeleton over the skyline. Built from Poly Haven CC0 PBR sets + scanned models (see CREDITS.md).
 import * as THREE from 'three';
@@ -8,7 +8,8 @@ import { mulberry } from '../core/util.js';
 import { AREAS } from '../tuning.js';
 import { Builder, Frame, P, molding, moldingRing, lathe, merge, balustrade, column, ironRailing, deadTree, pilaster } from './park/kit.js';
 import { makeMaterials, weather } from './park/materials.js';
-import { buildPalace } from './park/palace.js';
+import { buildCastle } from './park/castle.js';
+import { Festive } from './park/festive.js';
 import { buildEsplanade } from './park/esplanade.js';
 import { buildMidway, buildCarousel, stall } from './park/midway.js';
 import { buildGardens } from './park/gardens.js';
@@ -29,16 +30,26 @@ export function buildArena(scene, quality, A) {
   const propAt = (id, x, y, z, rotY = 0, height = 1, o = {}) => props.push({ id, m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, rotY).multiply(o.q || new THREE.Quaternion()), new THREE.Vector3(1, 1, 1)), height, o });
   const lights = [], fires = [];
   const inArea = (x, z, m = 0.8) => AREAS.list.some(({ rect: [x0, z0, x1, z1] }) => x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m);
-  const ctx = { B, M, A, rr, scene, propAt, lights, quality, inArea, H, bulbs: [] };
+  const festive = new Festive(), anim = [];
+  const ctx = { B, M, A, rr, scene, propAt, lights, quality, inArea, H, bulbs: [], festive, anim };
 
   // ---------- ground: wet herringbone brick, marble plaza, gardens of gravel and trampled beds ----------
-  for (const m of [M.marbleFloor, M.gravel, M.leaves, M.mud, M.mossCobble]) { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -2; }
+  for (const m of [M.marbleFloor, M.gravel, M.leaves, M.mud, M.mossCobble, M.hubCobble, M.streetBrick, M.terracotta, M.inlayBlue]) { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -2; }
   const plane = (mat, x0, x1, z0, z1, y = 0) => { const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0, Math.max(1, Math.round((x1 - x0) / 6)), Math.max(1, Math.round((z1 - z0) / 6))); g.rotateX(-Math.PI / 2); g.translate((x0 + x1) / 2, y, (z0 + z1) / 2); B.add(mat, g); };
   plane(M.paving, -110, 110, -110, 110);
   colliders.push({ minX: -200, maxX: 200, minY: -1, maxY: 0, minZ: -200, maxZ: 200, walk: true, mat: 'concrete', ground: true });
   // formal marble plaza round the bandstand, and a marble walk along the palace front
-  plane(M.marbleFloor, -9, 9, -12, 12, 0.002);
-  plane(M.marbleFloor, -20, 20, -35.9, -29, 0.002);
+  // the hub: cream colour-cobbles with a terracotta border and a terracotta / blue ring round the bandstand
+  plane(M.hubCobble, -9, 9, -12, 12, 0.002);
+  const ring = (mat, r0, r1, x, z, y) => { const g = new THREE.RingGeometry(r0, r1, 64, 1); g.rotateX(-Math.PI / 2); g.translate(x, y, z); B.add(mat, g); };
+  ring(M.terracotta, 6.9, 7.7, 0, 0, 0.004); ring(M.inlayBlue, 7.7, 7.95, 0, 0, 0.004); ring(M.inlayBlue, 6.65, 6.9, 0, 0, 0.004);
+  for (const [x0, x1, z0, z1] of [[-9, 9, -12, -11.4], [-9, 9, 11.4, 12], [-9, -8.4, -11.4, 11.4], [8.4, 9, -11.4, 11.4]]) plane(M.terracotta, x0, x1, z0, z1, 0.004);
+  // the castle courtyard: colour-cobbles, a terracotta and blue ring round the fountain
+  plane(M.hubCobble, -20, 20, -35.9, -25, 0.002);
+  ring(M.terracotta, 2.5, 3.6, 0, -30.4, 0.004); ring(M.inlayBlue, 3.6, 3.85, 0, -30.4, 0.004);
+  // Main Street: warm brick paving from the hub to the gate, with terracotta edging
+  plane(M.streetBrick, -7, 7, 12, 35.9, 0.002);
+  for (const sx of [-1, 1]) plane(M.terracotta, sx < 0 ? -7.6 : 7, sx < 0 ? -7 : 7.6, 12, 35.9, 0.004);
   const curb = (x0, x1, z0, z1, h = 0.12, mat = M.marbleTrim) => { for (const [a0, a1, b0, b1] of [[x0, x1, z0, z0 + 0.22], [x0, x1, z1 - 0.22, z1], [x0, x0 + 0.22, z0, z1], [x1 - 0.22, x1, z0, z1]]) { const g = new THREE.BoxGeometry(a1 - a0, h, b1 - b0); g.translate((a0 + a1) / 2, h / 2, (b0 + b1) / 2); B.add(mat, g); } };
   curb(-9, 9, -12, 12, 0.06);
   // gardens (west): gravel walks with sunken lawn beds gone to mud and leaf litter
@@ -50,7 +61,7 @@ export function buildArena(scene, quality, A) {
   { const g = new THREE.CircleGeometry(6.2, 48); g.rotateX(-Math.PI / 2); g.translate(15.7, 0.004, 9); B.add(M.mossCobble, g); }
 
   // ---------- the four edges ----------
-  buildPalace(ctx);
+  buildCastle(ctx);
   buildEsplanade(ctx);
   // beyond the north and south gates: walled service courts (where the horde comes from), so the gate
   // arches frame dark wet brick and a failing lamp instead of empty fog
@@ -106,22 +117,27 @@ export function buildArena(scene, quality, A) {
   };
   stairs(0, -4.5, 0, -1, 3, PH, 8); stairs(0, 4.5, 0, 1, 3, PH, 8);
   // the bandstand: eight fluted iron columns, a copper tent roof with a lace valance and gilt finial
-  { const cr = 4.25, ch = 4.6, oct = [];
+  { const cr = 4.25, ch = 7.0, oct = []; // tall slender columns: the roof stays out of the opening view of the castle
     for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; oct.push([Math.cos(a) * cr * 1.08, Math.sin(a) * cr * 0.98]); }
-    for (const [x, z] of oct) { const c = column(ch, 0.11, { flutes: 8, seg: 16, capital: 'corinthian' }); c.translate(x, PH, z); B.add(M.iron, c); B.col(x - 0.15, x + 0.15, PH, PH + ch, z - 0.15, z + 0.15, { surface: 'metal' }); }
+    for (const [x, z] of oct) { const c = column(ch, 0.14, { flutes: 8, seg: 16, capital: 'corinthian' }); c.translate(x, PH, z); B.add(M.marbleTrim, c); B.col(x - 0.15, x + 0.15, PH, PH + ch, z - 0.15, z + 0.15, { surface: 'metal' }); }
     const roofY = PH + ch;
-    const ring = new THREE.TorusGeometry(cr * 1.03, 0.09, 6, 8); ring.rotateX(Math.PI / 2); ring.rotateY(Math.PI / 8); ring.scale(1.04, 1, 0.95); ring.translate(0, roofY + 0.05, 0); B.add(M.iron, ring);
-    const tent = lathe([[cr * 1.22, 0], [cr * 1.15, 0.12], [cr * 0.95, 0.5], [cr * 0.6, 1.5], [cr * 0.3, 2.4], [0.25, 3.0], [0, 3.05]], 8); tent.rotateY(Math.PI / 8); tent.scale(1.04, 1, 0.95); tent.translate(0, roofY + 0.1, 0); B.add(M.copper, tent);
-    const under = lathe([[0, 2.9], [cr * 1.15, 0.05]], 8); under.rotateY(Math.PI / 8); under.scale(1.04, 1, 0.95); under.translate(0, roofY + 0.05, 0); B.add(M.greenPaint, under);
+    const ring = new THREE.TorusGeometry(cr * 1.03, 0.09, 6, 8); ring.rotateX(Math.PI / 2); ring.rotateY(Math.PI / 8); ring.scale(1.04, 1, 0.95); ring.translate(0, roofY + 0.05, 0); B.add(M.gold, ring);
+    const tent = lathe([[cr * 1.22, 0], [cr * 1.15, 0.12], [cr * 0.95, 0.5], [cr * 0.6, 1.5], [cr * 0.3, 2.4], [0.25, 3.0], [0, 3.05]], 8); tent.rotateY(Math.PI / 8); tent.scale(1.04, 1, 0.95); tent.translate(0, roofY + 0.1, 0); B.add(stripeMat(), tent, 'keep');
+    const under = lathe([[0, 2.9], [cr * 1.15, 0.05]], 8); under.rotateY(Math.PI / 8); under.scale(1.04, 1, 0.95); under.translate(0, roofY + 0.05, 0); B.add(stripeMat(), under, 'keep');
     const val = []; for (let k = 0; k < 8; k++) { const a0 = (k / 8) * Math.PI * 2 + Math.PI / 8, a1 = a0 + Math.PI / 4, p0 = [Math.cos(a0) * cr * 1.2 * 1.04, Math.sin(a0) * cr * 1.2 * 0.95], p1 = [Math.cos(a1) * cr * 1.2 * 1.04, Math.sin(a1) * cr * 1.2 * 0.95];
       const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), r2 = ironRailing(len, 0.42, 0.09); r2.rotateZ(Math.PI); r2.rotateY(-Math.atan2(p1[1] - p0[1], p1[0] - p0[0])); r2.translate((p0[0] + p1[0]) / 2, roofY + 0.1, (p0[1] + p1[1]) / 2); val.push(r2); }
-    B.add(M.iron, merge(val));
+    B.add(M.woodCream, merge(val));
     const fin = lathe([[0.3, 0], [0.34, 0.15], [0.2, 0.3], [0.28, 0.55], [0.08, 0.9], [0.14, 1.1], [0.02, 1.9], [0, 2.0]], 14); fin.translate(0, roofY + 3.0, 0); B.add(M.gold, fin);
     // a lantern hanging in the bandstand (the one real light on the deck)
     propAt('Lantern_01', 0, roofY + 1.3, 0, 0.4, 0.55, { hang: true });
     const L = new THREE.PointLight('#ffb36a', 9, 13, 1.7); L.position.set(0, roofY + 1.45, 0); scene.add(L); lights.push({ light: L, base: 9, flicker: 0.12 });
   }
 
+  { const eave = (a) => new THREE.Vector3(Math.cos(a) * 4.25 * 1.27, PH + 7.0 + 0.05, Math.sin(a) * 4.25 * 1.17);
+    for (const [x, z, k] of [[-9, 6, 0], [10, -5, 1], [-9, -12.5, 2], [9, 12.6, 3], [-6, 12, 4], [6, -12, 5]]) {
+      const a = Math.atan2(z, x), p0 = eave(a), p1 = new THREE.Vector3(x, 4.3, z);
+      festive.bunting(p0, p1, { sag: 0.8, size: 0.46, seed: k * 2 });
+    } }
   // ---------- boarded game stalls (old container footprints: cover + the climbable stack) ----------
   const stalls = [[-16, -8, 0, 0, 0, -1], [-16, -5.4, 0, 1, 0, 1], [-16, -8, 0, 2, 2.6, -1], [-12, 15, 0, 3, 0, 1], [20, -15, 1, 4, 0, 1], [8, -20, 0, 5, 0, -1], [-24, 22, 1, 6, 0, -1], [24, 24, 0, 7, 0, -1]];
   for (const [x, z, rot, i, y0, cs] of stalls) stall(ctx, x, z, rot, i, y0, cs);
@@ -131,11 +147,12 @@ export function buildArena(scene, quality, A) {
   parkMap(ctx, -9, 18, 0.35);
   popcornCart(ctx, -6, 13.5, 0.4, 1); popcornCart(ctx, 12, -4, -1.2, 2); popcornCart(ctx, -8, -14, 2.0, 3);
   const toward = (x, z, tx, tz) => Math.atan2(-(tz - z), tx - x);
-  fingerPost(ctx, -2, 12, [['PALACE OF HOURS', toward(-2, 12, 0, -36), '#5a1a14'], ['MIDWAY  ·  GAMES', toward(-2, 12, 30, 0), '#1f5b57'], ['THE GRAND WHEEL', toward(-2, 12, -64, -14), '#8a6a1c']]);
+  fingerPost(ctx, -2, 12, [['ASHLAND CASTLE', toward(-2, 12, 0, -36), '#2f63c4'], ['MIDWAY  ·  GAMES', toward(-2, 12, 30, 0), '#2f8a78'], ['THE GRAND WHEEL', toward(-2, 12, -64, -14), '#8a6a1c']]);
   fingerPost(ctx, -14, 0, [['SPLASH FLUME', toward(-14, 0, -29, 0), '#1f5b57'], ['IRON COMET', toward(-14, 0, 70, 0), '#5a1a14'], ['MAIN GATE', toward(-14, 0, 0, 40), '#3b2f5a']]);
 
 
   // ---------- stone planters gone wild (old jersey-barrier cover) ----------
+  const blooms = [];
   const planter = (x, z, rot) => {
     const w = rot ? 0.6 : 3, d = rot ? 3 : 0.6;
     B.col(x - w / 2, x + w / 2, 0, 0.95, z - d / 2, z + d / 2);
@@ -144,7 +161,8 @@ export function buildArena(scene, quality, A) {
     F.geo(M.marbleTrim, moldingRing(P.plinth(0.45), 2.9, 0.54, 0));
     F.geo(M.marbleTrim, moldingRing([[0, 0], [0.05, 0], [0.07, 0.06], [0.07, 0.2], [0, 0.23]], 2.96, 0.6, 0.72));
     F.box(M.mud, -1.38, 1.38, 0.72, 0.9, -0.22, 0.22);
-    for (let k = -1; k <= 1; k++) { const p = F.point(k * 0.95, 0.88, 0); propAt(rr() < 0.5 ? 'shrub_04' : 'nettle_plant#nettle_plant_medium_a_LOD0', p.x, p.y, p.z, rr() * 6, 0.9 + rr() * 0.7); }
+    for (const k of [-1, 1]) { const p = F.point(k * 0.9, 0.88, 0); propAt('shrub_04', p.x, p.y, p.z, rr() * 6, 0.7 + rr() * 0.3); }
+    for (let k = 0; k < 46; k++) blooms.push(F.point((rr() - 0.5) * 2.7, 0.92 + rr() * 0.22, (rr() - 0.5) * 0.4));
   };
   [[-6, -12, 0], [6, 12, 0], [-9, 9, 1], [10, -8, 1], [-22, 2, 1], [23, -2, 1], [0, -26, 0], [0, 26, 0], [-27, -18, 0], [28, 16, 0], [13, 22, 1], [-10, -22, 1]]
     .forEach(([x, z, rot]) => planter(x, z, rot));
@@ -216,7 +234,7 @@ export function buildArena(scene, quality, A) {
     propAt('Chandelier_01', 30.6, 3.88, 31.2, 0.3, 1.1, { hang: true });
     propAt('gothic_statue', -34.6, AREAS.list[0].roofY + 1.2, -34.6, Math.PI * 0.75, 1.7); }
   const weedIds = ['weed_plant_02#weed_plant_02_a_LOD0', 'weed_plant_02#weed_plant_02_c_LOD0', 'weed_plant_02#weed_plant_02_e_LOD0', 'nettle_plant#nettle_plant_small_a_LOD0', 'nettle_plant#nettle_plant_small_b_LOD0', 'fern_02#fern_02_a', 'fern_02#fern_02_c'];
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 50; i += 3) {
     let x, z; const side = Math.floor(rr() * 4), t = (rr() * 2 - 1) * (H - 3);
     if (i < 50) [x, z] = side === 0 ? [t, -H + 0.5 + rr() * 1.5] : side === 1 ? [t, H - 0.5 - rr() * 1.5] : side === 2 ? [-H + 0.5 + rr() * 1.5, t] : [H - 0.5 - rr() * 1.5, t];
     else { x = (rr() * 2 - 1) * (H - 3); z = (rr() * 2 - 1) * (H - 3); }
@@ -226,7 +244,13 @@ export function buildArena(scene, quality, A) {
   }
   propAt('dead_tree_trunk_02', -27, 0, -21.5, 0.4, 0.75); colliders.push({ minX: -29, maxX: -25, minY: 0, maxY: 0.7, minZ: -22.3, maxZ: -20.7, walk: false, mat: 'wood' });
 
-  B.flush(scene, { noShadow: new Set([M.interior, M.glass, M.marbleFloor, M.gravel, M.leaves, M.mud, M.paving]) });
+  // flowers in every planter: one instanced mesh of little blooms in park colours
+  { const pal = ['#e2453c', '#f4c542', '#f5efe2', '#e86aa0', '#9a5fd0', '#ff8a3a'].map((c) => new THREE.Color(c));
+    const im = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.075, 0), new THREE.MeshStandardMaterial({ roughness: 0.75 }), blooms.length), mx = new THREE.Matrix4();
+    blooms.forEach((p, i) => { const s = 0.8 + rr() * 0.7; im.setMatrixAt(i, mx.compose(p, new THREE.Quaternion(), new THREE.Vector3(s, s * 0.7, s))); im.setColorAt(i, pal[Math.floor(rr() * pal.length)]); });
+    im.castShadow = false; im.receiveShadow = true; scene.add(im); }
+  B.flush(scene, { noShadow: new Set([M.interior, M.glass, M.marbleFloor, M.gravel, M.leaves, M.mud, M.paving, M.hubCobble, M.streetBrick, M.terracotta, M.inlayBlue]) });
+  festive.flush(scene, M.woodCream);
   flushBulbs(scene, M, ctx.bulbs);
 
   // ---------- scanned models, instanced per mesh, weathered by the shared shader ----------
@@ -261,7 +285,7 @@ export function buildArena(scene, quality, A) {
   // ---------- skyline: the coaster's skeleton, dead woods, far park towers ----------
   const sky = buildSkyline(scene, M);
   const realLights = lights.filter((l) => !l.fake);
-  return { colliders, spawns, lights: realLights, glows: lights.filter((l) => l.fake), fires, nav: buildNav(colliders), stats: { parkTris: Math.round(B.tris), propTris: Math.round(propTris), facadeTris: Math.round(B.tris), skyline: { buildings: sky.count, tris: sky.tris, drawCalls: sky.drawCalls } } };
+  return { anim: (dt, t) => { for (const f of anim) f(dt, t); }, colliders, spawns, lights: realLights, glows: lights.filter((l) => l.fake), fires, nav: buildNav(colliders), stats: { parkTris: Math.round(B.tris), propTris: Math.round(propTris), facadeTris: Math.round(B.tris), skyline: { buildings: sky.count, tris: sky.tris, drawCalls: sky.drawCalls }, festiveTris: Math.round(festive.tris || 0) } };
 }
 
 // ---------- navigation grid: floor height per cell + blocked cells ----------
@@ -282,4 +306,14 @@ function buildNav(colliders) {
     height[gz * N + gx] = floor; blocked[gz * N + gx] = block;
   }
   return { N, H, height, blocked };
+}
+
+// candy-stripe paint for the bandstand's tent roof (lathe UVs: u runs round the roof)
+function stripeMat() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 64; const g = c.getContext('2d');
+  for (let i = 0; i < 16; i++) { g.fillStyle = i % 2 ? '#f6ecd8' : '#d23a33'; g.fillRect(i * 64, 0, 64, 64); }
+  g.fillStyle = 'rgba(0,0,0,0.12)'; for (let i = 0; i < 16; i++) g.fillRect(i * 64, 0, 2, 64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.42, metalness: 0.05, envMapIntensity: 1.0 });
+  m.userData.density = 1; return m;
 }

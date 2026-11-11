@@ -119,7 +119,7 @@ export function buildSkyline(scene, M) {
     { const car = new THREE.CylinderGeometry(1.25, 1.05, 1.5, 8, 1); car.rotateX(1.3); car.rotateY(0.6); car.translate(cx + 7, 1.0, cz + 15); cars.push(car); const roof = new THREE.ConeGeometry(1.45, 0.8, 8); roof.rotateZ(2.2); roof.translate(cx + 9.5, 0.7, cz + 13); roofs.push(roof); }
     tris += add(frame, bentMat); tris += add(rods, M.steel); tris += add(cars, coasterRed); tris += add(roofs, M.gold); }
 
-  // THE PLUMMET, north beyond the Palace: a 58 m lattice drop tower, its ring of seats stuck two-thirds up
+  // THE PLUMMET, north beyond the castle: a 58 m lattice drop tower, its ring of seats stuck two-thirds up
   { const cx = -24, cz = -66, H = 58, s0 = 1.6, legs = [], brace = [], ring = [], seats = [], crown = [];
     const bar = (a, b, r, arr) => { const d = new THREE.Vector3().subVectors(b, a), g = new THREE.CylinderGeometry(r, r, d.length(), 6, 1, true); g.translate(0, d.length() / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize())); g.translate(a.x, a.y, a.z); arr.push(g); };
     const V = (x, y, z) => new THREE.Vector3(x, y, z), C = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
@@ -147,16 +147,18 @@ export function buildSkyline(scene, M) {
     { const sb = new THREE.BoxGeometry(0.55, 0.08, 0.5); sb.rotateZ(1.2); sb.translate(cx + 6.5, 0.3, cz + 5); seats.push(sb); }
     tris += add(mast, M.copper); tris += add(canopy, M.woodYellow); tris += add(trim, M.woodRed); tris += add(chains, M.steel); tris += add(seats, M.coasterRed); }
 
-  // a dead wood all round, far towers of the park in the haze
-  const rnd = mulberry(4242), trees = [];
+  // the park woods all round (trunks plus leafy crowns), far towers of the park in the haze
+  const rnd = mulberry(4242), trees = [], crowns = [];
   for (let i = 0; i < 46; i++) {
     const a = rnd() * Math.PI * 2, d = 58 + rnd() * 50, x = Math.cos(a) * d, z = Math.sin(a) * d;
     if (x > 50 && z < 60 && z > -75) continue; // keep the coaster clear
     if (Math.hypot(x + 64, z + 14) < 18) continue; // and the wheel
     if (Math.hypot(x + 24, z + 66) < 9 || Math.hypot(x + 52, z - 24) < 13) continue; // and the drop tower, the swings
     const t = deadTree(mulberry(i * 37 + 5), { h: 10 + rnd() * 9, r: 0.35 + rnd() * 0.2, depth: d > 85 ? 2 : 3 }); t.translate(x, 0, z); trees.push(t);
+    const th = 10 + (i % 5) * 1.8, cr = mulberry(i * 91 + 3);
+    for (let k = 0; k < 4; k++) { const rr = 2.6 + cr() * 2.2, g = new THREE.IcosahedronGeometry(rr, 1); g.scale(1, 0.8, 1); g.translate(x + (cr() - 0.5) * 4, th * (0.62 + cr() * 0.3), z + (cr() - 0.5) * 4); crowns.push(g); }
   }
-  tris += add(trees, M.bark);
+  tris += add(trees, M.bark); tris += add(crowns, M.hedge);
   const towers = [], copperBits = [];
   for (const [x, z, h, r] of [[-70, -78, 34, 4], [-96, 30, 28, 3.4], [20, 96, 30, 3.6]]) {
     const body = lathe([[r * 1.3, 0], [r * 1.2, 2], [r, 2.4], [r * 0.92, h], [r * 1.12, h + 0.6], [r * 1.12, h + 1.0], [0, h + 1.0]], 16); body.translate(x, 0, z); towers.push(body);

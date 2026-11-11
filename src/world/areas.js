@@ -1,5 +1,5 @@
 // M13 — locked areas behind buyable barriers, dressed for Ashland: THE CLOCK TERRACE (a rusticated stone
-// terrace in front of the Palace, reached by a stair behind a chained wrought-iron gate) and THE GROTTO (the
+// terrace in front of the castle, reached by a stair behind a chained wrought-iron gate) and THE GROTTO (the
 // park's old rock-cut grotto ride hall behind a green iron-banded shutter). Buying a barrier plays its
 // opening animation + sound, removes its collider, and tells the game to rebuild nav / minimap / spawns.
 // Opened areas stay open for the rest of the run; reset() closes them again on restart.

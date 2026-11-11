@@ -8,7 +8,7 @@ export class Player {
     this.colliders = colliders;
     this.pos = new THREE.Vector3(0, 2.0, 2);
     this.vel = new THREE.Vector3();
-    this.yaw = Math.PI; this.pitch = 0;
+    this.yaw = 0; this.pitch = 0.12; // same castle-facing pose as reset()
     this.height = STAND; this.eye = STAND - 0.1; this.eyeSmooth = this.eye;
     this.grounded = false; this.coyote = 0; this.landImpact = 0;
     this.sprinting = false; this.crouching = false; this.sliding = 0; this.slideDir = new THREE.Vector3();
@@ -21,7 +21,7 @@ export class Player {
   }
 
   reset() {
-    this.pos.set(0, 2.0, 1.5); this.vel.set(0, 0, 0); this.yaw = Math.PI; this.pitch = -0.05;
+    this.pos.set(0, 2.0, 1.5); this.vel.set(0, 0, 0); this.yaw = 0; this.pitch = 0.12; // face the castle
     this.health = this.maxHealth; this.alive = true; this.sliding = 0; this.armor = 0;
   }
 

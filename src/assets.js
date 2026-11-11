@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { LIGHTING } from './world/lighting.js';
 
 // Everything the game streams in before the menu unlocks. CC0 / free-licensed sources are listed in CREDITS.md.
 const BASE = import.meta.env.BASE_URL + 'assets/';
@@ -11,7 +12,9 @@ export const MODEL_IDS = ['large_iron_gate', 'horse_statue_01', 'gothic_statue',
 export const TEX_IDS = ['distressed_painted_planks', 'plywood', 'peeling_painted_wall', 'old_planks_02', 'herringbone_pavement_03', 'marble_tiles', 'leaf_scattered_gravel', 'forest_leaves_02', 'brown_mud_leaves_01',
   'mossy_cobblestone', 'white_sandstone_blocks_02', 'marble_01', 'red_bricks_04', 'medieval_red_brick', 'rock_wall_08', 'mossy_stone_wall',
   'green_metal_rust', 'roof_slates_02', 'metal_plate_02', 'rusty_metal_02', 'weathered_planks', 'wood_peeling_paint_weathered',
-  'red_plaster_weathered', 'velour_velvet', 'tree_bark_03'];
+  'red_plaster_weathered', 'velour_velvet', 'tree_bark_03',
+  // daylight castle + streets pass
+  'white_stucco', 'roof_tiles_tint', 'brick_pave_tint', 'cobblestone_color', 'terracotta_tint'];
 
 export async function loadAssets(onProgress = () => {}) {
   const manager = new THREE.LoadingManager();
@@ -32,7 +35,7 @@ export async function loadAssets(onProgress = () => {}) {
     tex(`${BASE}tex/${id}_arm.webp`, false).then((t) => (textures[id].arm = t));
   }
   let hdr = null;
-  job(new HDRLoader(manager).loadAsync(BASE + 'hdr/sky.hdr').then((t) => { t.mapping = THREE.EquirectangularReflectionMapping; hdr = t; }));
+  job(new HDRLoader(manager).loadAsync(BASE + 'hdr/' + LIGHTING.hdri).then((t) => { t.mapping = THREE.EquirectangularReflectionMapping; hdr = t; }));
   await Promise.all(jobs);
   return { models, textures, hdr };
 }

@@ -55,11 +55,11 @@ export function buildEsplanade(ctx) {
   F.box(M.iron, -aw - 0.2, aw + 0.2, ay - 0.25, ay, -0.6, 0.6);
   F.geo(M.iron, ironRailing(aw * 2, 2.2, 0.32).translate(0, ay, 0));
   F.box(M.iron, -aw - 0.2, aw + 0.2, ay + 2.2, ay + 2.4, -0.25, 0.25);
-  bulbLetters(ctx, F, 'ASHLAND', 0, ay + 1.15, 0.32, aw * 2 - 0.3, 1.75, { plate: M.woodRed, litChance: 0.07, seed: 21 });
+  bulbLetters(ctx, F, 'ASHLAND', 0, ay + 1.15, 0.32, aw * 2 - 0.3, 1.75, { plate: M.woodRed, litChance: 0.95, seed: 21 });
   const arc = []; for (const zz of [-0.15, 0.15]) { const curve = new THREE.CatmullRomCurve3(Array.from({ length: 17 }, (_, i) => { const t = i / 16, a = Math.PI * (1 - t); return new THREE.Vector3(Math.cos(a) * (aw + 0.1), ay + 2.4 + Math.sin(a) * 1.7, zz); })); arc.push(new THREE.TubeGeometry(curve, 40, 0.07, 8)); }
   for (let i = 1; i < 16; i++) { const a = Math.PI * (1 - i / 16), x = Math.cos(a) * (aw + 0.1), y = ay + 2.4 + Math.sin(a) * 1.7; const g = new THREE.CylinderGeometry(0.03, 0.03, y - ay - 2.4, 6); g.translate(x, (y + ay + 2.4) / 2, 0); arc.push(g); }
   F.geo(M.iron, merge(arc));
-  for (let i = 0; i <= 24; i++) { const a = Math.PI * (1 - i / 24); ctx.bulbs.push({ p: F.point(Math.cos(a) * (aw + 0.1), ay + 2.4 + Math.sin(a) * 1.7 + 0.1, 0.25), lit: rr() < 0.15 }); }
+  for (let i = 0; i <= 24; i++) { const a = Math.PI * (1 - i / 24); ctx.bulbs.push({ p: F.point(Math.cos(a) * (aw + 0.1), ay + 2.4 + Math.sin(a) * 1.7 + 0.1, 0.25), lit: rr() < 0.9 }); }
   const star = lathe([[0.5, 0], [0.12, 0.15], [0, 0.3]], 5); star.rotateX(Math.PI / 2); star.translate(0, ay + 4.45, 0); F.geo(M.gold, star);
   // turnstiles beyond the arch (behind the horde's gate spawn), one lane wrenched open
   for (let i = 0; i < 9; i++) {
@@ -68,7 +68,13 @@ export function buildEsplanade(ctx) {
     F.geo(M.iron, ironRailing(1.6, 1.05, 0.14).rotateY(Math.PI / 2).translate(x + 0.35, 0, -7.6));
   }
   for (const [x, z, i] of [[-5.5, 21, 0], [5.5, 21, 1], [-5.5, 27, 2], [5.5, 27, 3]]) bannerPole(ctx, x, z, i);
-  const bent = ironRailing(1.6, 1.05, 0.14); bent.rotateY(Math.PI / 2); bent.rotateZ(0.5); bent.translate(0.1, 0.2, -7.4); F.geo(M.iron, bent);
+  // bunting: swags across Main Street between the banner poles, and from the arch to the lodges
+  const fest = ctx.festive, W = (x, y, z) => new THREE.Vector3(x, y, z);
+  for (const z of [21, 27]) { fest.bunting(W(-5.5, 5.9, z), W(5.5, 5.9, z), { sag: 1.0, seed: z }); }
+  for (const sx of [-1, 1]) { fest.bunting(W(sx * 5.5, 5.9, 21), W(sx * 5.5, 5.9, 27), { sag: 0.6, seed: 3 + sx });
+    fest.bunting(W(sx * 5.5, 5.9, 27), W(sx * 4.95, 10.4, 34.6), { sag: 0.9, seed: 7 + sx });
+    fest.bunting(W(0, 13.6, 35.7), W(sx * 13, 10.6, 33.4), { sag: 1.4, seed: 11 + sx });
+    fest.bunting(W(sx * 13, 10.6, 33.4), W(sx * 24, 10.6, 33.4), { sag: 1.2, seed: 13 + sx }); }
 }
 
 function hotel(ctx, F, xa, xb, title, seed) {
@@ -78,7 +84,7 @@ function hotel(ctx, F, xa, xb, title, seed) {
   // ---- deep porch: recessed ground floor, plank deck, turned posts, fretwork brackets, balustrade
   const dz = -2.4, G = F.sub(0, dz);
   G.geo(M.stoneDark, molding(P.plinth(0.7), xa, xb, 0, 0));
-  storey(G, M, rr, xa + 0.2, xb - 0.2, { y0: 0.45, y1: 4.9, bay: 2.9, mat: M.woodCream, win: { w: 1.5, sill: 0.6, spring: 2.6, seg: 0.12 }, surround: M.woodGreen, sill: M.woodGreen, fills: ['plywood', 'plywood', 'boards', 'glass', 'broken', 'dark'], frame: M.woodGreen, thick: 0.3 });
+  storey(G, M, rr, xa + 0.2, xb - 0.2, { y0: 0.45, y1: 4.9, bay: 2.9, mat: M.woodCream, win: { w: 1.5, sill: 0.6, spring: 2.6, seg: 0.12 }, surround: M.woodGreen, sill: M.woodGreen, fills: ['glass', 'glass', 'shutter'], frame: M.woodGreen, thick: 0.3 });
   F.box(M.deck, xa, xb, 0, 0.45, dz, 0); F.box(M.woodCream, xa, xb, 0.05, 0.4, -0.05, 0.02);
   const n = Math.round((xb - xa) / 2.9), step = (xb - xa) / n;
   for (let i = 0; i <= n; i++) {
@@ -111,7 +117,7 @@ function hotel(ctx, F, xa, xb, title, seed) {
   for (let f = 0; f < floors; f++) {
     const yb = y0 + f * fh;
     storey(F, M, rr, xa + 0.2, xb - 0.2, { y0: yb, y1: yb + fh, bay: 2.9, mat: body, thick: 0.35, win: { w: 1.2, sill: 0.85, spring: 2.5, seg: 0.1 }, surround: trim, sill: trim,
-      fills: ['shutter', 'plywood', 'glass', 'hanging', 'broken', 'plywood', 'boards'], frame: trim, shutterMat: trim === M.woodGreen ? M.woodCream : M.woodGreen, course: f === floors - 1 ? null : { mat: trim, profile: P.string(0.9) } });
+      fills: ['shutter', 'glass', 'glass', 'shutter', 'glass'], frame: trim, shutterMat: trim === M.woodGreen ? M.woodCream : M.woodGreen, course: f === floors - 1 ? null : { mat: trim, profile: P.string(0.9) } });
   }
   const ytop = y0 + floors * fh;
   for (const e of [xa, xb]) F.box(trim, e === xa ? e : e - 0.32, e === xa ? e + 0.32 : e, 5.3, ytop, 0, 0.08);
@@ -135,8 +141,8 @@ function hotel(ctx, F, xa, xb, title, seed) {
     const fy = ytop + 1.0;
     F.geo(M.iron, ironRailing(bw, 3.2, 0.45).translate(bx, fy, 0.3));
     F.box(M.iron, bx - bw / 2, bx + bw / 2, fy + 3.1, fy + 3.25, 0.2, 0.4);
-    deadNeon(ctx, F, 'Hotel Vesper', bx, fy + 1.7, 0.45, bw - 0.4, 2.5, { color: '#5d1a1a', glow: '#ff3a28', lit: 0.0 });
-    deadNeon(ctx, F, 'VACANCY', bx, fy - 0.15, 0.5, 3.2, 0.6, { color: '#2a4a3a', glow: '#3aff9a', font: '700', lit: 0.0 });
+    deadNeon(ctx, F, 'Hotel Vesper', bx, fy + 1.7, 0.45, bw - 0.4, 2.5, { color: '#5d1a1a', glow: '#ff3a28', lit: 1.0 });
+    deadNeon(ctx, F, 'VACANCY', bx, fy - 0.15, 0.5, 3.2, 0.6, { color: '#2a4a3a', glow: '#3aff9a', font: '700', lit: 1.0 });
   }
   for (const fx of [0.3, 0.7]) { const cx = xa + (xb - xa) * fx; F.box(M.brickDeep, cx - 0.6, cx + 0.6, ytop + 3.5, ytop + 7.4, -6.2, -5.0); F.box(M.stoneDark, cx - 0.72, cx + 0.72, ytop + 7.4, ytop + 7.6, -6.32, -4.88); }
 }

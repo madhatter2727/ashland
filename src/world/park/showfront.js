@@ -14,7 +14,7 @@ function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 
 // Original vintage-style attraction bills: bold flat shapes, serif type, then sun-bleached, water-stained,
 // torn at the corners. Six designs, no characters or mascots.
 const BILLS = [
-  { t: 'THE PALACE OF HOURS', s: 'A VOYAGE THROUGH TIME', bg: '#2d4a3a', fg: '#e3c57a', art: 'clock' },
+  { t: 'ASHLAND CASTLE', s: 'A VOYAGE THROUGH TIME', bg: '#2d4a3a', fg: '#e3c57a', art: 'clock' },
   { t: 'THE IRON COMET', s: 'THE FASTEST RIDE ON THE COAST', bg: '#6e1d18', fg: '#ecd9a8', art: 'coaster' },
   { t: 'THE GRAND WHEEL', s: 'SEE THREE COUNTIES', bg: '#1f2e3d', fg: '#e8c36a', art: 'wheel' },
   { t: 'HALL OF MIRRORS', s: 'WHICH ONE IS YOU?', bg: '#3b1b2c', fg: '#e9d3a0', art: 'mirror' },
@@ -66,6 +66,8 @@ export function posterCase(F, M, scene, x, y, z, i, seed, w = 1.25) {
 }
 
 // ---------------------------------------------------------------- bulbs
+// The park is open: most marquee bulbs burn. Every lit chance is raised to at least this.
+export const BULBS = { minLit: 0.82 };
 // ctx.bulbs = [{ p: Vector3, lit }]; flushBulbs draws them as two instanced meshes
 export function flushBulbs(scene, M, bulbs, r = 0.055) {
   const geo = new THREE.SphereGeometry(r, 8, 6), sock = new THREE.CylinderGeometry(r * 0.75, r * 0.8, r * 1.2, 8);
@@ -90,7 +92,7 @@ export function bulbLetters(ctx, F, text, cx, cy, z, width, height, { plate, lit
   const d = g.getImageData(0, 0, W, H).data, px = width / W;
   for (let yy = step / 2; yy < height; yy += step) for (let xx = step / 2; xx < width; xx += step) {
     const ix = Math.floor(xx / px), iy = Math.floor((height - yy) / px); if (d[(iy * W + ix) * 4] < 128) continue;
-    bulbs.push({ p: F.point(cx - width / 2 + xx, cy - height / 2 + yy, z + 0.08), lit: r() < litChance });
+    bulbs.push({ p: F.point(cx - width / 2 + xx, cy - height / 2 + yy, z + 0.08), lit: r() < Math.max(litChance, BULBS.minLit) });
   }
   // letter plates: the same mask, dilated, cut out of a painted board
   const [pc, pg] = canvas(W, H); pg.fillStyle = '#000'; pg.fillRect(0, 0, W, H); pg.fillStyle = '#fff'; pg.strokeStyle = '#fff'; pg.lineWidth = H * 0.06; pg.lineJoin = 'round';
@@ -101,7 +103,7 @@ export function bulbLetters(ctx, F, text, cx, cy, z, width, height, { plate, lit
 // a row of bulbs along a local line
 export function bulbRow(ctx, F, x0, y0, z0, x1, y1, z1, step = 0.32, litChance = 0.1, seed = 5) {
   const r = rng(seed), n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0, z1 - z0) / step));
-  for (let i = 0; i <= n; i++) { const t = i / n; ctx.bulbs.push({ p: F.point(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t), lit: r() < litChance }); }
+  for (let i = 0; i <= n; i++) { const t = i / n; ctx.bulbs.push({ p: F.point(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t), lit: r() < Math.max(litChance, BULBS.minLit) }); }
 }
 
 // ---------------------------------------------------------------- dead neon script

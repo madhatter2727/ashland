@@ -83,18 +83,17 @@ const texCache = new Map();
 function bannerTex(i) {
   if (texCache.has('b' + i)) return texCache.get('b' + i);
   const c = document.createElement('canvas'); c.width = 256; c.height = 768; const g = c.getContext('2d'), r = mulberry(i * 31 + 7);
-  const cols = [['#8f2a20', '#e0b84a'], ['#1f5b57', '#e7d3a0'], ['#c99a2e', '#5a1a14'], ['#3b2f5a', '#d9b45c']][i % 4];
+  const cols = [['#d2402f', '#f6d36a'], ['#2f63c4', '#f6e3a8'], ['#f2c14e', '#a8262a'], ['#d65a7e', '#fff3d6']][i % 4];
   g.fillStyle = cols[0]; g.fillRect(0, 0, 256, 768);
   g.fillStyle = cols[1]; g.fillRect(0, 0, 256, 34); g.fillRect(14, 50, 228, 6); g.fillRect(14, 600, 228, 6);
   g.save(); g.translate(128, 200); g.fillStyle = cols[1]; g.beginPath(); for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2 - Math.PI / 2, rr = k % 2 ? 26 : 62; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath(); g.fill(); g.restore();
   g.fillStyle = cols[1]; g.font = '700 54px "Playfair Display", Georgia, serif'; g.textAlign = 'center';
   [...'ASHLAND'].forEach((ch, k) => g.fillText(ch, 128, 320 + k * 40 * 0.95 * 1.1));
   // fade, mildew, rain streaks
-  for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(${r() < 0.5 ? '230,220,190' : '30,25,20'},${r() * 0.12})`; g.fillRect(r() * 256, r() * 768, 2 + r() * 10, 6 + r() * 60); }
+  for (let k = 0; k < 200; k++) { g.fillStyle = `rgba(${r() < 0.5 ? '255,250,235' : '30,25,20'},${r() * 0.04})`; g.fillRect(r() * 256, r() * 768, 2 + r() * 10, 6 + r() * 60); }
   // torn bottom edge and a rip: cut with destination-out
-  g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(0, 768); let y = 640 + r() * 40;
-  for (let x = 0; x <= 256; x += 16) { y = 620 + r() * 120; g.lineTo(x, y); } g.lineTo(256, 768); g.closePath(); g.fill();
-  if (i % 2) { g.beginPath(); g.moveTo(150, 768); g.lineTo(170, 380); g.lineTo(190, 768); g.fill(); }
+  // swallowtail hem
+  g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(0, 768); g.lineTo(128, 680); g.lineTo(256, 768); g.closePath(); g.fill();
   g.globalCompositeOperation = 'source-over';
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; texCache.set('b' + i, t); return t;
 }
@@ -119,17 +118,16 @@ export function fingerPost(ctx, x, z, signs) {
 }
 function mapTex() {
   const c = document.createElement('canvas'); c.width = 1536; c.height = 1024; const g = c.getContext('2d'), r = mulberry(99);
-  g.fillStyle = '#cdb98c'; g.fillRect(0, 0, 1536, 1024);
+  g.fillStyle = '#f3e6c4'; g.fillRect(0, 0, 1536, 1024);
   g.fillStyle = '#5a1a14'; g.fillRect(0, 0, 1536, 120); g.fillStyle = '#e8cf8a'; g.font = '700 84px "Playfair Display", Georgia, serif'; g.textAlign = 'center'; g.fillText('ASHLAND  ·  PARK GUIDE', 768, 88);
-  g.fillStyle = '#9fae7c'; g.fillRect(120, 180, 1296, 760);
+  g.fillStyle = '#9fcf7c'; g.fillRect(120, 180, 1296, 760);
   const blob = (x, y, w, h, col, t) => { g.fillStyle = col; g.fillRect(x, y, w, h); g.strokeStyle = '#3a2a1c'; g.lineWidth = 4; g.strokeRect(x, y, w, h); g.fillStyle = '#2a1c12'; g.font = '700 34px Georgia, serif'; g.fillText(t, x + w / 2, y + h / 2 + 12); };
   g.strokeStyle = '#e9dcb8'; g.lineWidth = 46; g.beginPath(); g.moveTo(768, 940); g.lineTo(768, 520); g.lineTo(320, 520); g.moveTo(768, 520); g.lineTo(1220, 520); g.moveTo(768, 520); g.lineTo(768, 260); g.stroke();
-  blob(560, 190, 416, 90, '#a8473a', 'THE PALACE OF HOURS'); blob(150, 380, 230, 280, '#5f8f78', 'GARDENS'); blob(1150, 330, 240, 380, '#c99a2e', 'MIDWAY');
+  blob(560, 190, 416, 90, '#6f9ae0', 'ASHLAND CASTLE'); blob(150, 380, 230, 280, '#5f8f78', 'GARDENS'); blob(1150, 330, 240, 380, '#c99a2e', 'MIDWAY');
   blob(620, 850, 296, 80, '#a8473a', 'MAIN GATE'); blob(1300, 190, 110, 120, '#7a3a2a', 'IRON COMET'); blob(126, 190, 150, 110, '#3b6e6a', 'GRAND WHEEL');
   blob(860, 600, 220, 70, '#d8c08a', 'CAROUSEL'); blob(420, 760, 200, 70, '#d8c08a', 'SKY SWINGS'); blob(380, 190, 150, 80, '#d8c08a', 'THE PLUMMET');
   g.fillStyle = '#b3201a'; g.beginPath(); g.arc(768, 760, 20, 0, 7); g.fill(); g.font = 'italic 700 30px Georgia'; g.fillText('YOU ARE HERE', 768, 810);
-  for (let k = 0; k < 2500; k++) { g.fillStyle = `rgba(${r() < 0.6 ? '60,40,20' : '240,230,200'},${r() * 0.1})`; const s = 4 + r() * 40; g.fillRect(r() * 1536, r() * 1024, s, s * (0.4 + r())); }
-  g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(1536, 1024); for (let k = 0; k < 12; k++) g.lineTo(1536 - r() * 420, 1024 - k * 30 - r() * 60); g.lineTo(1536, 600); g.fill(); g.globalCompositeOperation = 'source-over';
+  for (let k = 0; k < 400; k++) { g.fillStyle = `rgba(${r() < 0.6 ? '60,40,20' : '240,230,200'},${r() * 0.04})`; const s = 4 + r() * 40; g.fillRect(r() * 1536, r() * 1024, s, s * (0.4 + r())); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 export function parkMap(ctx, x, z, rot) {

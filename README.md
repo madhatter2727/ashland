@@ -1,28 +1,32 @@
 # ASHLAND
 
-A horde shooter in the browser, set in Ashland: a grand amusement park that closed one wet evening and never
-opened again. Built on three.js and WebGL shaders.
+A horde shooter in the browser, set in Ashland, a fairy-tale theme park on a late autumn afternoon, with the
+horde coming in through the gates. Built on three.js and WebGL shaders.
 
 ASHLAND is a **setting reskin of [Hordefall](https://github.com/madhatter2727/hordefall)**. The guns, movement,
 perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchanged, except that mouse look is about 2x faster. The world is new.
 
-**Play:** https://ashland-lac.vercel.app
+**Play:** https://ashland-park.vercel.app (also https://ashland-lac.vercel.app)
 
-![Park street, with the Palace of Hours and the drop tower behind it](docs/street.jpg)
+![The opening view: Ashland Castle and its fountain from the bandstand](docs/castle.jpg)
 
 ## The park
-- **The main gate and park street** (south): two painted timber pylons with RIDES and AMUSEMENTS bands carry
-  an iron arch that spells ASHLAND in bulb letters, most of them dead. There are ticket booths and rusted
-  turnstiles. Inside the gate, torn park banners hang from iron poles along a street of old boardwalk lodges.
-  The lodges are clapboard in chalky yellow, oxidized teal, carnival red and cream, with steep shingle
-  gables, deep porches, and shops on the ground floors: Souvenirs, Salt Water Taffy, Photographs and a Penny
-  Arcade. Hotel Vesper still has its dead neon sign.
-- **The Palace of Hours** (north): the park's great dark ride, a crumbling attraction castle. Lopsided
-  turrets with flared shingle cones (one roof stove in) rise over a crenellated curtain wall hung with torn
-  show banners. The clock keep is stopped at 11:47, a cogwheel arch frames the entrance, and a huge broken
-  marquee hangs over it.
-- **The hub** (centre): open paving around the old bandstand, a faded park guide map, abandoned popcorn
-  carts, and finger posts pointing to the rides and games.
+- **The main gate and Main Street** (south): two painted pylons with RIDES and AMUSEMENTS bands carry an
+  iron arch that spells ASHLAND in lit bulb letters, with ticket booths and turnstiles. Main Street runs from
+  the gate to the hub on warm brick paving, under swags of bunting strung between banner poles, past the
+  boardwalk lodges in sunny yellow, teal, carnival red and cream: steep shingle gables, deep porches, and
+  shops on the ground floors (Souvenirs, Salt Water Taffy, Photographs and a Penny Arcade). Hotel Vesper's
+  neon script is lit.
+- **Ashland Castle** (north): the park's fairy-tale castle, an original design. Pastel lime-stucco walls in
+  blush, cream and lilac with tall arched cobalt-glass windows, white stone trim and a clean crenellated
+  crown; slender round towers of different heights with flared glazed-tile cone roofs (cobalt, rose, teal,
+  plum), gilt finials and pennants; corbelled bartizans; a long hall behind the wall with dormers; and over
+  the gate a three-stage keep: the great arch with rose-and-white voussoirs, the park crest and gilt
+  lettering, a clock stage (half past four), and a tall central spire. Heraldic banners and bunting hang
+  from the walls. In the cobbled courtyard in front, a three-tier fountain with moving water.
+- **The hub** (centre): colour-cobbles with terracotta and blue rings round a tall bandstand with a candy-striped
+  roof, bunting strung from its eaves to the lamp standards, planters full of flowers, the park guide map,
+  popcorn carts, and finger posts pointing to the rides and games.
 - **The Midway** (east): game halls under an iron colonnade, painted game booths with lit prize shelves,
   scrolled crest boards and dead bulbs, and a gilded carousel standing still. The great coaster rises over
   the wall.
@@ -31,13 +35,13 @@ perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchan
 - **On the skyline**, all scenery only: the Iron Comet coaster, the Grand Wheel (a stopped 44 m Ferris wheel),
   the Plummet (a 58 m drop tower with its seats stuck high), and the Sky Swings (a wave swinger jammed at a
   tilt).
-- **Locked areas** (buy with F): **The Clock Terrace** (a stone terrace before the Palace, up a stair behind a
+- **Locked areas** (buy with F): **The Clock Terrace** (a stone terrace before the castle, up a stair behind a
   chained iron gate) and **The Grotto** (the old rock-cut boat-ride hall behind an iron-banded shutter).
 
 | | |
 |---|---|
-| ![Main gate and park street](docs/gate.jpg) | ![The Palace of Hours](docs/palace.jpg) |
-| ![The hub](docs/hub.jpg) | ![Boardwalk lodges](docs/hotel.jpg) |
+| ![Main gate and park street](docs/gate.jpg) | ![Ashland Castle and the fountain](docs/palace.jpg) |
+| ![The hub and the castle](docs/hub.jpg) | ![Main Street toward the castle](docs/street.jpg) |
 
 ## How it looks the way it does
 - All surfaces use Poly Haven CC0 PBR texture sets (albedo, normal, AO/roughness/metal) for herringbone paving,
@@ -49,10 +53,13 @@ perks, shop, wall-buys, horde AI, enemies and throwables are Hordefall's, unchan
   dormers, domes with ribs and lanterns, and iron railings. Static pieces are merged per material.
 - Real CC0 models: iron gates, statues, lion heads, lanterns, a chandelier, urns, benches, shrubs, weeds,
   ferns and mossy rocks. The heaviest models are decimated so the game stays smooth on laptop GPUs.
-- One shared weather shader adds grime and damp rising from the ground, rain streaks under ledges, moss on
-  upward-facing stone, wet sheen, gold leaf flaking off the gilding, and puddles with animated rain ripples.
-- Lighting is an overcast dusk HDRI (kloppenheim_01_puresky) for image-based lighting and reflections, a
-  low sun behind the Palace, a slate cloud deck, rain haze and fog, and warm failing gas lamps.
+- One shared weather shader can add grime, damp, rain streaks, moss, flaking gilt and puddles; the park is
+  open and kept, so a single `UPKEEP` table in `src/world/park/materials.js` scales all of it way down.
+- Lighting is late-afternoon daylight, and every number lives in one file, `src/world/lighting.js`: a warm
+  sun 24 degrees up in the south-west raking the castle front, a blue sky with cumulus, a real partly-cloudy
+  daylight HDRI (Poly Haven kloofendal_48d_partly_cloudy_puresky, CC0) for image-based light and
+  reflections, blue skylight in the shadows, and a light haze. Nightfall still blends to night as the waves
+  climb.
 
 ## Controls
 | | |

@@ -7,6 +7,8 @@ import { WallBuys } from './world/wallbuys.js';
 import { Stations } from './world/stations.js';
 import { Drinks, drinkIconURL } from './world/drinks.js';
 import { makeSky, SUN_DIR } from './world/sky.js';
+import { LIGHTING as LT } from './world/lighting.js';
+import { RAIN } from './world/park/materials.js';
 import { Player } from './player.js';
 import { Arsenal } from './weapons/arsenal.js';
 import { Audio } from './audio.js';
@@ -41,28 +43,30 @@ class Game {
     this.state = 'menu'; // menu | play | paused | shop | dead
     const canvas = $('game');
     const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false }));
-    r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.05;
+    r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = LT.exposure;
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap;
 
     // ---------- world ----------
     const scene = (this.scene = new THREE.Scene());
-    scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(0.2, 0.205, 0.215, THREE.LinearSRGBColorSpace), 0.0115);
+    // late-afternoon daylight: every number lives in world/lighting.js
+    scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(...LT.fogColor, THREE.LinearSRGBColorSpace), LT.fogDensity);
     this.sky = makeSky(); scene.add(this.sky);
     const pm = new THREE.PMREMGenerator(r);
-    // image-based lighting + reflections from a real dusk HDRI (Poly Haven, CC0), turned so its sun sits near ours
+    // image-based lighting + reflections from a real daylight HDRI (Poly Haven, CC0), turned so its sun sits near ours
     this.env = pm.fromEquirectangular(assets.hdr).texture; assets.hdr.dispose();
-    scene.environment = this.env; scene.environmentIntensity = 0.5;
-    scene.environmentRotation.set(0, 2.2, 0);
+    scene.environment = this.env; scene.environmentIntensity = LT.envIntensity;
+    scene.environmentRotation.set(0, LT.envRotation, 0);
 
-    const sun = (this.sun = new THREE.DirectionalLight('#ffc28e', 3.4));
-    sun.position.copy(SUN_DIR).multiplyScalar(70); sun.target.position.set(0, 0, 0);
+    const sun = (this.sun = new THREE.DirectionalLight(LT.sunColor, LT.sunIntensity));
+    sun.position.copy(SUN_DIR).multiplyScalar(90); sun.target.position.set(0, 0, -6);
     sun.castShadow = true;
-    const sc = sun.shadow.camera; sc.left = -48; sc.right = 48; sc.top = 48; sc.bottom = -48; sc.near = 1; sc.far = 170;
-    sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.035;
+    const sc = sun.shadow.camera, SE = LT.shadow.extent; sc.left = -SE; sc.right = SE; sc.top = SE; sc.bottom = -SE; sc.near = 1; sc.far = LT.shadow.far;
+    sun.shadow.bias = LT.shadow.bias; sun.shadow.normalBias = LT.shadow.normalBias;
     sun.shadow.mapSize.setScalar(QUALITY[this.quality].shadow);
     scene.add(sun, sun.target);
-    scene.add(new THREE.HemisphereLight('#838a96', '#2f2a24', 1.1));
+    scene.add(new THREE.HemisphereLight(LT.hemiSky, LT.hemiGround, LT.hemiIntensity));
+    RAIN.wet.value = LT.wetness;
 
     this.camera = new THREE.PerspectiveCamera(HIP_FOV, innerWidth / innerHeight, 0.05, 600);
     this.aim = new THREE.Object3D(); this.aim.rotation.order = 'YXZ';
@@ -70,11 +74,11 @@ class Game {
 
     // ---------- viewmodel (own scene so the gun never clips into walls) ----------
     this.vmScene = new THREE.Scene();
-    this.vmScene.environment = this.env; this.vmScene.environmentIntensity = 0.6; this.vmScene.environmentRotation.set(0, 2.2, 0);
+    this.vmScene.environment = this.env; this.vmScene.environmentIntensity = LT.vmEnv; this.vmScene.environmentRotation.set(0, LT.envRotation, 0);
     this.vmCamera = new THREE.PerspectiveCamera(VM_HIP_FOV, innerWidth / innerHeight, 0.01, 10);
     this.vmScene.add(this.vmCamera);
-    this.vmSun = new THREE.DirectionalLight('#ffb27e', 2.6); this.vmScene.add(this.vmSun, this.vmSun.target);
-    this.vmHemi = new THREE.HemisphereLight('#8a909c', '#2f2a24', 1.2); this.vmScene.add(this.vmHemi);
+    this.vmSun = new THREE.DirectionalLight(LT.vmSunColor, LT.vmSunIntensity); this.vmScene.add(this.vmSun, this.vmSun.target);
+    this.vmHemi = new THREE.HemisphereLight(LT.vmHemiSky, LT.vmHemiGround, LT.vmHemiIntensity); this.vmScene.add(this.vmHemi);
     this.vmLocal = new THREE.PointLight('#ff8a3a', 0, 4, 2); this.vmScene.add(this.vmLocal);
 
     this.arena = buildArena(scene, this.quality, assets);
@@ -952,7 +956,7 @@ class Game {
     this.nightfall.update(dt, this.horde.wave || 1);
     if (this.state === 'play') this.minHpFrac = Math.min(this.minHpFrac ?? 1, this.player.health / this.player.maxHealth);
     this.arena.lights.forEach((L, i) => { const fl = L.flicker + (i % 2 ? this.lampFlick : 0), hum = Math.sin(this.time * 17 + L.base + i) * Math.sin(this.time * 7.3 + L.base * 3 + i * 1.7); L.light.intensity = L.base * this.lampMul * (1 - fl + fl * (0.6 + 0.4 * hum)) * (i % 2 && this.lampFlick > 0.05 && Math.sin(this.time * 2.1 + i) > 0.97 ? 0.25 : 1); });
-    this.sky.material.uniforms.time.value = this.time;
+    this.sky.material.uniforms.time.value = this.time; RAIN.time.value = this.time; this.arena.anim(dt, this.time);
     this.updateViewmodelLights();
 
     // post uniforms

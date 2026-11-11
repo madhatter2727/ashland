@@ -14,8 +14,14 @@ const NOISE = /* glsl */ `
                mix(mix(wh3(i+vec3(0,0,1)), wh3(i+vec3(1,0,1)), f.x), mix(wh3(i+vec3(0,1,1)), wh3(i+vec3(1,1,1)), f.x), f.y), f.z); }
   float wfbm(vec3 p){ return wn3(p) * 0.5 + wn3(p * 2.03) * 0.28 + wn3(p * 4.1) * 0.14 + wn3(p * 8.3) * 0.08; }`;
 
+// The park is open and kept: every material's weathering is scaled by these before it is compiled, so the
+// old abandoned-park values still describe *where* dirt would sit, just much less of it.
+export const UPKEEP = { grime: 0.35, streaks: 0.25, moss: 0.15, gild: 0.15, puddles: 0.0 };
+
 export function weather(mat, o = {}) {
   const W = { grime: 0.7, streaks: 0.5, wet: 0.5, moss: 0, gild: 0, puddles: 0, height: 2.4, ...o };
+  if (!o.fresh) { W.grime *= UPKEEP.grime; W.streaks *= UPKEEP.streaks; W.moss *= UPKEEP.moss; W.gild *= UPKEEP.gild; W.puddles *= UPKEEP.puddles; }
+  delete W.fresh;
   const f = (v) => Number(v).toFixed(3);
   mat.userData.weather = W;
   mat.customProgramCacheKey = () => 'ash-weather-' + JSON.stringify(W);
@@ -59,8 +65,8 @@ export function weather(mat, o = {}) {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
           float pField = wfbm(vec3(vWP.xz * 0.12, 1.7)) + wn3(vec3(vWP.xz * 1.1, 4.0)) * 0.04;
-          float pud = smoothstep(0.6, 0.64, pField) * ${f(W.puddles)};
-          float wetEdge = smoothstep(0.5, 0.6, pField);
+          float pud = smoothstep(0.6, 0.64, pField) * ${f(W.puddles)} * uWet;
+          float wetEdge = smoothstep(0.5, 0.6, pField) * uWet;
           diffuseColor.rgb *= mix(1.0, 0.7, wetEdge);
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.22, pud);
           roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.5, wetEdge);
@@ -92,55 +98,69 @@ export function makeMaterials(A) {
   const P = (id, opt, density, w) => { const m = pbr(A, id, opt); m.userData.density = density; return w === false ? m : weather(m, w || {}); };
   const M = {
     // ground
-    paving: P('herringbone_pavement_03', { color: '#a59a92', normalScale: 1.25 }, 1 / 2.4, { grime: 0.25, streaks: 0, wet: 0.9, puddles: 1, height: 0.1 }),
-    marbleFloor: P('marble_tiles', { color: '#8e8981', normalScale: 1 }, 1 / 2.6, { grime: 0.5, streaks: 0, wet: 0.9, puddles: 0.8, moss: 0.25, height: 0.1 }),
-    gravel: P('leaf_scattered_gravel', { color: '#9c948a' }, 1 / 2.2, { grime: 0, streaks: 0, wet: 0.6, puddles: 0.6, height: 0.1 }),
-    leaves: P('forest_leaves_02', { color: '#8e8478' }, 1 / 2.4, { grime: 0, streaks: 0, wet: 0.5, height: 0.1 }),
-    hedge: P('forest_leaves_02', { color: '#56653c', normalScale: 1.6 }, 1 / 1.3, { grime: 0, streaks: 0, wet: 0.5, height: 0.1 }),
-    mud: P('brown_mud_leaves_01', { color: '#8a7f73' }, 1 / 2.4, { grime: 0, streaks: 0, wet: 0.8, puddles: 0.9, height: 0.1 }),
+    paving: P('herringbone_pavement_03', { color: '#e0bea2', normalScale: 1.1 }, 1 / 2.4, { grime: 0.25, streaks: 0, wet: 0.9, puddles: 1, height: 0.1 }),
+    marbleFloor: P('marble_tiles', { color: '#e8dccb', normalScale: 0.8 }, 1 / 2.6, { grime: 0.5, streaks: 0, wet: 0.9, puddles: 0.8, moss: 0.25, height: 0.1 }),
+    gravel: P('leaf_scattered_gravel', { color: '#c4b49a' }, 1 / 2.2, { grime: 0, streaks: 0, wet: 0.6, puddles: 0.6, height: 0.1 }),
+    leaves: P('forest_leaves_02', { color: '#7d8f4a' }, 1 / 2.4, { grime: 0, streaks: 0, wet: 0.5, height: 0.1 }),
+    hedge: P('forest_leaves_02', { color: '#5f8a3a', normalScale: 1.6 }, 1 / 1.3, { grime: 0, streaks: 0, wet: 0.5, height: 0.1 }),
+    mud: P('brown_mud_leaves_01', { color: '#7a6a52' }, 1 / 2.4, { grime: 0, streaks: 0, wet: 0.8, puddles: 0.9, height: 0.1 }),
     mossCobble: P('mossy_cobblestone', { color: '#9a958c', normalScale: 1.3 }, 1 / 2, { grime: 0.3, streaks: 0, wet: 1, puddles: 1, height: 0.1 }),
     // masonry
-    stone: P('white_sandstone_blocks_02', { color: '#c9bfae', normalScale: 1.1 }, 1 / 2.2, { grime: 0.9, streaks: 0.9, wet: 0.45, moss: 0.35, height: 3.5 }),
+    stone: P('white_sandstone_blocks_02', { color: '#e6d9c2', normalScale: 1.0 }, 1 / 2.2, { grime: 0.9, streaks: 0.9, wet: 0.45, moss: 0.35, height: 3.5 }),
     stoneDark: P('white_sandstone_blocks_02', { color: '#8f877b', normalScale: 1.2 }, 1 / 1.6, { grime: 1, streaks: 0.8, wet: 0.5, moss: 0.5, height: 3 }),
-    marble: P('marble_01', { color: '#d9d2c6', normalScale: 0.7 }, 1 / 2.4, { grime: 0.8, streaks: 1, wet: 0.6, moss: 0.25, height: 2.5 }),
-    marbleTrim: P('marble_01', { color: '#c7beb0', normalScale: 0.6 }, 1 / 1.4, { grime: 0.9, streaks: 1, wet: 0.5, moss: 0.2, height: 3 }),
-    brick: P('red_bricks_04', { color: '#9a6a5c', normalScale: 1.2 }, 1 / 2.2, { grime: 0.9, streaks: 0.8, wet: 0.45, height: 3 }),
-    brickDeep: P('medieval_red_brick', { color: '#86574c', normalScale: 1.2 }, 1 / 2.4, { grime: 1, streaks: 0.8, wet: 0.5, height: 3 }),
+    marble: P('marble_01', { color: '#f2ebe0', normalScale: 0.6 }, 1 / 2.4, { grime: 0.8, streaks: 1, wet: 0.6, moss: 0.25, height: 2.5 }),
+    marbleTrim: P('marble_01', { color: '#f0e6d6', normalScale: 0.6 }, 1 / 1.4, { grime: 0.9, streaks: 1, wet: 0.5, moss: 0.2, height: 3 }),
+    brick: P('red_bricks_04', { color: '#c07a62', normalScale: 1.1 }, 1 / 2.2, { grime: 0.9, streaks: 0.8, wet: 0.45, height: 3 }),
+    brickDeep: P('medieval_red_brick', { color: '#b0654f', normalScale: 1.1 }, 1 / 2.4, { grime: 1, streaks: 0.8, wet: 0.5, height: 3 }),
     grottoRock: P('rock_wall_08', { color: '#7b776d', normalScale: 1.6 }, 1 / 3, { grime: 0.6, streaks: 0.6, wet: 1, moss: 0.8, height: 4 }),
     grottoWall: P('mossy_stone_wall', { color: '#8c887c', normalScale: 1.4 }, 1 / 2.4, { grime: 0.6, streaks: 0.7, wet: 1, moss: 0.4, height: 4 }),
     // roofs + metals
-    copper: P('green_metal_rust', { metal: true, color: '#9fb7a2', envMapIntensity: 1.1 }, 1 / 2.5, { grime: 0.5, streaks: 0.9, wet: 0.6, height: -10 }),
+    copper: P('green_metal_rust', { metal: true, color: '#9fd0c0', envMapIntensity: 1.1 }, 1 / 2.5, { grime: 0.5, streaks: 0.9, wet: 0.6, height: -10 }),
     slate: P('roof_slates_02', { color: '#7d7b80', normalScale: 1.3 }, 1 / 2, { grime: 0.4, streaks: 0.4, wet: 0.9, moss: 0.3, height: -10 }),
-    gold: P('metal_plate_02', { metal: true, color: '#c99a45', envMapIntensity: 1.4 }, 1 / 0.9, { grime: 0.5, streaks: 0.5, wet: 0.3, gild: 1, height: 1 }),
-    brass: P('metal_plate_02', { metal: true, color: '#a37a42', envMapIntensity: 1.2 }, 1 / 1.2, { grime: 0.7, streaks: 0.6, wet: 0.3, height: 1 }),
+    gold: P('metal_plate_02', { metal: true, color: '#e8b752', envMapIntensity: 1.5 }, 1 / 0.9, { grime: 0.5, streaks: 0.5, wet: 0.3, gild: 1, height: 1 }),
+    brass: P('metal_plate_02', { metal: true, color: '#cf9e55', envMapIntensity: 1.3 }, 1 / 1.2, { grime: 0.7, streaks: 0.6, wet: 0.3, height: 1 }),
     bronzeOld: P('metal_plate_02', { metal: true, color: '#4a3a28', roughness: 0.75, envMapIntensity: 0.6 }, 1 / 0.8, { grime: 0.9, streaks: 0.9, wet: 0.4, height: 2 }),
-    iron: tint(P('rusty_metal_02', { metal: true, envMapIntensity: 1 }, 1 / 1.5, { grime: 0.3, streaks: 0.3, wet: 0.5, height: 1 }), '#4a4540'),
-    ironGreen: tint(P('rusty_metal_02', { metal: true, envMapIntensity: 1 }, 1 / 1.5, { grime: 0.3, streaks: 0.5, wet: 0.5, height: 1 }), '#3a4a3e'),
+    iron: tint(P('rusty_metal_02', { metal: true, envMapIntensity: 1 }, 1 / 1.5, { grime: 0.3, streaks: 0.3, wet: 0.5, height: 1 }), '#2e3a44'),
+    ironGreen: tint(P('rusty_metal_02', { metal: true, envMapIntensity: 1 }, 1 / 1.5, { grime: 0.3, streaks: 0.5, wet: 0.5, height: 1 }), '#2f5a48'),
     steel: P('rusty_metal_02', { metal: true, envMapIntensity: 1.1 }, 1 / 2, { grime: 0.4, streaks: 0.6, wet: 0.4, height: 1 }),
     coasterRed: tint(P('rusty_metal_02', { metal: true, envMapIntensity: 1.1 }, 1 / 2, { grime: 0.3, streaks: 0.6, wet: 0.4, height: 1 }), '#8a3a30'),
     // timber, paint, fabric
     boards: P('weathered_planks', { color: '#b0a290', normalScale: 1.2 }, 1 / 2, { grime: 0.4, streaks: 0.8, wet: 0.5, height: 2 }),
-    shutter: tint(P('wood_peeling_paint_weathered', { normalScale: 1.2 }, 1 / 1.6, { grime: 0.5, streaks: 0.8, wet: 0.4, height: 2 }), '#5f7a62'),
-    redPaint: P('red_plaster_weathered', { color: '#8b3a32', normalScale: 1.1 }, 1 / 2, { grime: 0.8, streaks: 1, wet: 0.4, height: 3 }),
-    greenPaint: tint(P('red_plaster_weathered', { normalScale: 1.1 }, 1 / 2, { grime: 0.8, streaks: 1, wet: 0.4, height: 3 }), '#3c5a45'),
+    shutter: tint(P('wood_peeling_paint_weathered', { normalScale: 1.0 }, 1 / 1.6, { grime: 0.5, streaks: 0.8, wet: 0.4, height: 2 }), '#4f9a7a'),
+    redPaint: P('red_plaster_weathered', { color: '#c8433a', normalScale: 1.0 }, 1 / 2, { grime: 0.8, streaks: 1, wet: 0.4, height: 3 }),
+    greenPaint: tint(P('red_plaster_weathered', { normalScale: 1.1 }, 1 / 2, { grime: 0.8, streaks: 1, wet: 0.4, height: 3 }), '#2f7a5c'),
     velvet: P('velour_velvet', { color: '#7a1f22', normalScale: 0.8 }, 1 / 1.2, { grime: 0.6, streaks: 0.8, wet: 0.5, height: 1 }),
     // boardwalk timber: board-and-batten painted deep red / bottle green / aged cream, raw plywood, deck planks
-    woodRed: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.7, streaks: 0.9, wet: 0.45, moss: 0.15, height: 2 }), '#a8362a'),
-    woodGreen: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.7, streaks: 0.9, wet: 0.45, moss: 0.15, height: 2 }), '#356a62'),
-    woodCream: tint(P('distressed_painted_planks', { normalScale: 1.1 }, 1 / 2.2, { grime: 0.8, streaks: 1, wet: 0.4, height: 2 }), '#c4b493'),
-    woodYellow: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.75, streaks: 0.9, wet: 0.45, moss: 0.1, height: 2 }), '#d2a94a'),
-    woodTeal: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.7, streaks: 0.9, wet: 0.45, moss: 0.15, height: 2 }), '#3f8a82'),
-    fauxStone: tint(P('white_sandstone_blocks_02', { normalScale: 1.4 }, 1 / 2.2, { grime: 0.9, streaks: 1, wet: 0.5, moss: 0.35, height: 5 }), '#cbb385'),
-    shingleRed: tint(P('roof_slates_02', { normalScale: 1.3 }, 1 / 1.6, { grime: 0.5, streaks: 0.6, wet: 0.8, moss: 0.4, height: -10 }), '#9a4434'),
+    woodRed: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.7, streaks: 0.9, wet: 0.45, moss: 0.15, height: 2 }), '#d2402f'),
+    woodGreen: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.7, streaks: 0.9, wet: 0.45, moss: 0.15, height: 2 }), '#2f8a78'),
+    woodCream: tint(P('distressed_painted_planks', { normalScale: 1.1 }, 1 / 2.2, { grime: 0.8, streaks: 1, wet: 0.4, height: 2 }), '#f3e6c8'),
+    woodYellow: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.75, streaks: 0.9, wet: 0.45, moss: 0.1, height: 2 }), '#f2c14e'),
+    woodTeal: tint(P('distressed_painted_planks', { normalScale: 1.2 }, 1 / 2.2, { grime: 0.7, streaks: 0.9, wet: 0.45, moss: 0.15, height: 2 }), '#3fb0a8'),
+    fauxStone: tint(P('white_sandstone_blocks_02', { normalScale: 1.4 }, 1 / 2.2, { grime: 0.9, streaks: 1, wet: 0.5, moss: 0.35, height: 5 }), '#efdcc0'),
+    shingleRed: tint(P('roof_slates_02', { normalScale: 1.3 }, 1 / 1.6, { grime: 0.5, streaks: 0.6, wet: 0.8, moss: 0.4, height: -10 }), '#c8503c'),
     plywood: tint(P('plywood', { normalScale: 0.8 }, 1 / 2.4, { grime: 0.6, streaks: 0.9, wet: 0.5, height: 1 }), '#9a8366'),
     deck: P('old_planks_02', { color: '#a89a88', normalScale: 1.2 }, 1 / 2.4, { grime: 0.3, streaks: 0, wet: 0.8, puddles: 0.6, moss: 0.2, height: 0.5 }),
-    muralWall: tint(P('peeling_painted_wall', { normalScale: 1.0 }, 1 / 3, { grime: 0.8, streaks: 1, wet: 0.4, height: 4 }), '#a84e3a'),
+    muralWall: tint(P('peeling_painted_wall', { normalScale: 0.8 }, 1 / 3, { grime: 0.8, streaks: 1, wet: 0.4, height: 4 }), '#d8664a'),
+    // the fairy-tale castle and the kept streets: fresh lime stucco in pastel washes, glazed clay roof tiles,
+    // warm brick paving, colour-cobbled hub, terracotta inlay. Light weathering only.
+    stuccoBlush: tint(P('white_stucco', { normalScale: 0.9 }, 1 / 2.6, { grime: 0.12, streaks: 0.1, wet: 0.2, height: 1.5, fresh: true }), '#f6dccf'),
+    stuccoCream: tint(P('white_stucco', { normalScale: 0.9 }, 1 / 2.6, { grime: 0.12, streaks: 0.1, wet: 0.2, height: 1.5, fresh: true }), '#fbf0dc'),
+    stuccoLilac: tint(P('white_stucco', { normalScale: 0.9 }, 1 / 2.6, { grime: 0.12, streaks: 0.1, wet: 0.2, height: 1.5, fresh: true }), '#dcd2ee'),
+    castleTrim: P('white_sandstone_blocks_02', { color: '#fff4e2', normalScale: 0.7 }, 1 / 1.4, { grime: 0.15, streaks: 0.1, wet: 0.2, height: 1, fresh: true }),
+    roofBlue: tint(P('roof_tiles_tint', { normalScale: 1.2, envMapIntensity: 1.2 }, 1 / 1.1, { grime: 0.05, streaks: 0.05, wet: 0.15, height: -10, fresh: true }), '#2f63c4'),
+    roofRose: tint(P('roof_tiles_tint', { normalScale: 1.2, envMapIntensity: 1.2 }, 1 / 1.1, { grime: 0.05, streaks: 0.05, wet: 0.15, height: -10, fresh: true }), '#d65a7e'),
+    roofTeal: tint(P('roof_tiles_tint', { normalScale: 1.2, envMapIntensity: 1.2 }, 1 / 1.1, { grime: 0.05, streaks: 0.05, wet: 0.15, height: -10, fresh: true }), '#2fa39a'),
+    roofPlum: tint(P('roof_tiles_tint', { normalScale: 1.2, envMapIntensity: 1.2 }, 1 / 1.1, { grime: 0.05, streaks: 0.05, wet: 0.15, height: -10, fresh: true }), '#7a4fb0'),
+    streetBrick: tint(P('brick_pave_tint', { normalScale: 1.1 }, 1 / 1.6, { grime: 0.1, streaks: 0, wet: 0.3, height: 0.1, fresh: true }), '#c46a4e'),
+    hubCobble: tint(P('cobblestone_color', { normalScale: 1.0 }, 1 / 2.2, { grime: 0.1, streaks: 0, wet: 0.3, height: 0.1, fresh: true }), '#f4e6d0'),
+    terracotta: tint(P('terracotta_tint', { normalScale: 0.9 }, 1 / 1.2, { grime: 0.1, streaks: 0, wet: 0.3, height: 0.1, fresh: true }), '#d9774e'),
+    inlayBlue: tint(P('terracotta_tint', { normalScale: 0.9 }, 1 / 1.2, { grime: 0.1, streaks: 0, wet: 0.3, height: 0.1, fresh: true }), '#4f86c8'),
     bark: P('tree_bark_03', { color: '#7d756c', normalScale: 1.5 }, 1 / 1.6, { grime: 0.2, streaks: 0.5, wet: 0.5, moss: 0.4, height: 2 }),
   };
-  M.glass = new THREE.MeshPhysicalMaterial({ color: '#06080a', roughness: 0.07, metalness: 0, transparent: true, opacity: 0.55, envMapIntensity: 1.1, depthWrite: false, specularIntensity: 1, ior: 1.52 });
+  M.glass = new THREE.MeshPhysicalMaterial({ color: '#22384e', roughness: 0.06, metalness: 0, transparent: true, opacity: 0.7, envMapIntensity: 1.1, depthWrite: false, specularIntensity: 1, ior: 1.52 });
   M.glass.userData.density = 1;
   M.dark = new THREE.MeshStandardMaterial({ color: '#070606', roughness: 0.95 }); M.dark.userData.density = 1;
-  M.water = new THREE.MeshStandardMaterial({ color: '#05080a', roughness: 0.04, metalness: 0.2, envMapIntensity: 1.6 }); M.water.userData.density = 0.5;
+  M.water = new THREE.MeshStandardMaterial({ color: '#0d3a4a', roughness: 0.05, metalness: 0.1, envMapIntensity: 1.4 }); M.water.userData.density = 0.5;
   M.interior = interiorMaterial();
   M.boothGlow = new THREE.MeshStandardMaterial({ color: '#3a2a1c', emissive: '#ff9a48', emissiveIntensity: 0.32, roughness: 0.9 }); M.boothGlow.userData.density = 1;
   // dead neon: dusty coloured glass tubing, unlit; and incandescent marquee bulbs (a few still burn)
